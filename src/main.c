@@ -51,6 +51,11 @@ int main()
   {
     // Input
     glfwPollEvents();
+    glClearColor(0, 0, 0, 0);
+
+    
+
+    glfwSwapBuffers(window);
   }
   
   return 0;

@@ -2,7 +2,8 @@ cmake_minimum_required(VERSION 3.2)
 
 set(APP_NAME graphics_test)
 
-set(SOURCES src/main.c)
+set(SOURCES src/main.c
+            src/graphics_backend.c)
 
 ## Third party libs
 # glad 
