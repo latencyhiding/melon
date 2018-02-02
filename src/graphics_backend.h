@@ -92,7 +92,6 @@ typedef struct
 
 /* tz_vertex_attrib - Struct defining vertex attributes 
  *
- * name - name of the attribute. can be null
  * buffer_binding - binding index of the buffer that this attribute exists in
  * offset - number of bytes from the start of a vertex that an attribute begins
  * type - the data format of the attribute
@@ -104,7 +103,6 @@ typedef struct
  */
 typedef struct
 {
-  const char* name;
   int buffer_binding;
   size_t offset;
   tz_vertex_data_type type;
@@ -172,13 +170,9 @@ typedef struct
 // - Types used to operate the backend
 ////////////////////////////////////////////////////////////////////////////////
 
-/* tz_gfx_device - Contains a pointer to the backend data and the allocator
+/* tz_gfx_device - opaque type for the backend data and the allocator
  */
-typedef struct
-{
-  void* data;
-  tz_cb_allocator allocator;
-} tz_gfx_device;
+typedef struct tz_gfx_device tz_gfx_device;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Functions
@@ -198,4 +192,4 @@ tz_shader_id tz_create_shader(tz_gfx_device* device, const tz_shader* shader_cre
 tz_buffer_id tz_create_buffer(tz_gfx_device* device, const tz_buffer* buffer_create_info);
 tz_vertex_format_id tz_create_vertex_format(tz_gfx_device* device, const tz_vertex_format* vertex_format_info);
 
-#endif TZ_GFX_H
+#endif 
