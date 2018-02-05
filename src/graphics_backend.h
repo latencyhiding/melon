@@ -33,19 +33,17 @@ typedef struct
 
 /* tz_*_id - typesafe wrappers for ids of different kinds of resources
  */
-#define INVALID_ID ~0
-#define ID_IS_INVALID(resource_id) (resource_id.id == INVALID_ID)
-typedef uint32_t tz_id;
-#define TZ_ID(name) typedef struct {tz_id id;} name;
+typedef struct tz_pool_id tz_pool_id;
+#define TZ_ID(name) typedef struct {tz_pool_id id} name;
 
-TZ_ID(tz_buffer_id);
-TZ_ID(tz_vertex_format_id);
-TZ_ID(tz_uniform_block_id);
-TZ_ID(tz_texture_id);
-TZ_ID(tz_shader_stage_id);
-TZ_ID(tz_shader_id);
-TZ_ID(tz_resource_package_id);
-TZ_ID(tz_pipeline_id);
+TZ_ID(tz_buffer);
+TZ_ID(tz_vertex_format);
+TZ_ID(tz_uniform_block);
+TZ_ID(tz_texture);
+TZ_ID(tz_shader_stage);
+TZ_ID(tz_shader);
+TZ_ID(tz_resource_package);
+TZ_ID(tz_pipeline);
 
 // Basic vertex data types
 typedef enum
@@ -88,7 +86,7 @@ typedef struct
   void* data;
   size_t size;
   tz_buffer_usage usage;
-} tz_buffer;
+} tz_buffer_params;
 
 /* tz_vertex_attrib - Struct defining vertex attributes 
  *
@@ -108,7 +106,7 @@ typedef struct
   tz_vertex_data_type type;
   int size;
   int divisor;
-} tz_vertex_attrib;
+} tz_vertex_attrib_params;
 
 /* tz_vertex_format - Struct defining vertex formats
  *
@@ -125,8 +123,8 @@ typedef struct
   size_t stride;
   size_t num_attribs;
 
-  tz_vertex_attrib attribs[TZ_MAX_ATTRIBUTES];
-} tz_vertex_format;
+  tz_vertex_attrib_params attribs[TZ_MAX_ATTRIBUTES];
+} tz_vertex_format_params;
 
 /* tz_shader_stage - Struct defining a shader stage
  * NOTE: for simplicity's sake, shaders are considered a single unit when resources
@@ -136,21 +134,21 @@ typedef struct
 {
   const char* source;
   size_t size;
-} tz_shader_stage;
+} tz_shader_stage_params;
 
 /* tz_shader - Struct defining a shader
 */
 typedef struct
 {
-  tz_shader_stage_id vertex_shader;
-  tz_shader_stage_id fragment_shader;
-} tz_shader;
+  tz_shader_stage vertex_shader;
+  tz_shader_stage fragment_shader;
+} tz_shader_params;
 
 typedef struct
 {
-  tz_vertex_format_id vertex_format;
-  tz_shader_id shader_program;
-} tz_pipeline;
+  tz_vertex_format vertex_format;
+  tz_shader shader_program;
+} tz_pipeline_params;
 
 /* tz_gfx_device_config - Contains a description/settings for a gfx device
  */
@@ -163,7 +161,7 @@ typedef struct
   size_t max_pipelines;
 
   tz_cb_allocator allocator;
-} tz_gfx_device_config;
+} tz_gfx_device_params;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Operation Types
@@ -185,11 +183,11 @@ typedef struct tz_gfx_device tz_gfx_device;
 // Returns the default allocator for our backend
 tz_cb_allocator tz_default_cb_allocator();
 
-tz_gfx_device* tz_create_device(const tz_gfx_device_config* device_config);
+tz_gfx_device* tz_create_device(const tz_gfx_device_params* device_config);
 
-tz_shader_stage_id tz_create_shader_stage(tz_gfx_device* device, const tz_shader_stage* shader_stage_create_info);
-tz_shader_id tz_create_shader(tz_gfx_device* device, const tz_shader* shader_create_info);
-tz_buffer_id tz_create_buffer(tz_gfx_device* device, const tz_buffer* buffer_create_info);
-tz_vertex_format_id tz_create_vertex_format(tz_gfx_device* device, const tz_vertex_format* vertex_format_info);
+tz_shader_stage tz_create_shader_stage(tz_gfx_device* device, const tz_shader_stage_params* shader_stage_create_info);
+tz_shader tz_create_shader(tz_gfx_device* device, const tz_shader_params* shader_create_info);
+tz_buffer tz_create_buffer(tz_gfx_device* device, const tz_buffer_params* buffer_create_info);
+tz_vertex_format tz_create_vertex_format(tz_gfx_device* device, const tz_vertex_format_params* vertex_format_info);
 
 #endif 
