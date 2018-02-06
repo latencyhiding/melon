@@ -31,10 +31,30 @@ typedef struct
   void* user_data;
 } tz_cb_allocator;
 
+/* tz_pool - a pool with a stack-like behavior. Indices are allocated in a FIFO
+ * order.
+ */
+#define TZ_POOL_INVALID_INDEX ~0
+#define TZ_INVALID_ID(id) (id.index == TZ_POOL_INVALID_INDEX)
+typedef uint32_t tz_pool_index;
+#define TZ_ID(name) typedef struct {tz_pool_index id} name;
+
+typedef struct
+{
+  tz_pool_index* free_indices;
+  size_t capacity;
+  size_t num_free_indices;
+
+  tz_cb_allocator allocator;
+} tz_pool;
+
+void tz_create_pool(tz_pool* pool, size_t capacity, const tz_cb_allocator* allocator);
+void tz_delete_pool(tz_pool* pool);
+tz_pool_index tz_pool_create_id(tz_pool* pool);
+void tz_pool_delete_id(tz_pool* pool, tz_pool_index index);
+
 /* tz_*_id - typesafe wrappers for ids of different kinds of resources
  */
-typedef struct tz_pool_id tz_pool_id;
-#define TZ_ID(name) typedef struct {tz_pool_id id} name;
 
 TZ_ID(tz_buffer);
 TZ_ID(tz_vertex_format);
@@ -184,6 +204,7 @@ typedef struct tz_gfx_device tz_gfx_device;
 tz_cb_allocator tz_default_cb_allocator();
 
 tz_gfx_device* tz_create_device(const tz_gfx_device_params* device_config);
+void tz_delete_device(tz_gfx_device* device);
 
 tz_shader_stage tz_create_shader_stage(tz_gfx_device* device, const tz_shader_stage_params* shader_stage_create_info);
 tz_shader tz_create_shader(tz_gfx_device* device, const tz_shader_params* shader_create_info);
