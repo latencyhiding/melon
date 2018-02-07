@@ -1,10 +1,10 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
-#include <gl_utils/gl_helpers.h>
-
 #include <stdio.h>
 #include <stdlib.h>
+
+#include <engine/graphics_backend.h>
 
 static void error_callback(int error, const char *description)
 {
@@ -46,6 +46,17 @@ int main()
   gladLoadGLLoader((GLADloadproc) glfwGetProcAddress);
 
   glfwSetKeyCallback(window, key_callback);
+
+  tz_gfx_device_params gfx_device_params = {
+    .max_shader_stages = 100,
+    .max_shaders = 100,
+    .max_buffers = 100,
+    .max_vertex_formats = 100,
+    .max_pipelines = 100,
+    .allocator = tz_default_cb_allocator()
+  };
+
+  tz_gfx_device* device = tz_create_device(&gfx_device_params);
   
   while (!glfwWindowShouldClose(window))
   {
@@ -53,10 +64,10 @@ int main()
     glfwPollEvents();
     glClearColor(0, 0, 0, 0);
 
-    
-
     glfwSwapBuffers(window);
   }
+
+  tz_delete_device(device);
   
   return 0;
 }

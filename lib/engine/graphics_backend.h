@@ -37,7 +37,7 @@ typedef struct
 #define TZ_POOL_INVALID_INDEX ~0
 #define TZ_INVALID_ID(id) (id.index == TZ_POOL_INVALID_INDEX)
 typedef uint32_t tz_pool_index;
-#define TZ_ID(name) typedef struct {tz_pool_index id} name;
+#define TZ_ID(name) typedef struct {tz_pool_index id;} name;
 
 typedef struct
 {

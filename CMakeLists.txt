@@ -2,8 +2,7 @@ cmake_minimum_required(VERSION 3.2)
 
 set(APP_NAME graphics_test)
 
-set(SOURCES src/main.c
-            src/graphics_backend.c)
+set(SOURCES src/main.c)
 
 ## Third party libs
 # glad 
@@ -32,12 +31,17 @@ add_library(header_only_impls STATIC
                               thirdparty/header_only_impls.c)
 include_directories(thirdparty)
 
+# libs
+include_directories(lib)
+
+# engine lib
+add_library(engine STATIC
+                   lib/engine/graphics_backend.c)
+
+# tests
+add_subdirectory(test)
+
 ##
 
-add_library(gl_utils STATIC
-                     lib/gl_utils/src/gl_helpers.c
-                     lib/gl_utils/include)
-include_directories(lib/gl_utils/include)
-
 add_executable(${APP_NAME} ${SOURCES})
-target_link_libraries(${APP_NAME} ${OPENGL_LIBRARIES} glfw glad gl_utils header_only_impls)
+target_link_libraries(${APP_NAME} ${OPENGL_LIBRARIES} glfw glad header_only_impls engine)

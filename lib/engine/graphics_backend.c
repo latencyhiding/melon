@@ -11,21 +11,35 @@ inline static void* align_forward(void* ptr, size_t align)
 
 static void* tz_malloc(void* user_data, size_t size, size_t align)
 {
-  void* ptr = malloc(size + align);
+  size_t offset = align + sizeof(void*);
+  void* ptr = malloc(size + sizeof(void*) + align);
 
-  return ptr ? (void*) align_forward(ptr, align) : NULL;
+  if (ptr == NULL)
+    return NULL;
+
+  void** return_ptr = (void**) align_forward(((void**) ptr) + 1, align);
+  return_ptr[-1] = ptr;
+
+  return (void*) return_ptr;
 }
 
 static void* tz_realloc(void* user_data, void* ptr, size_t size, size_t align)
 {
-  void* new_ptr = realloc(ptr, size + align);
+  size_t offset = align + sizeof(void*);
+  void* new_ptr = realloc(ptr, size + sizeof(void*) + align);
 
-  return new_ptr ? (void*) align_forward(new_ptr, align) : NULL;
+  if (new_ptr == NULL)
+    return NULL;
+
+  void** return_ptr = (void**) align_forward(((void**) new_ptr) + 1, align);
+  return_ptr[-1] = new_ptr;
+
+  return (void*) return_ptr;
 }
 
 static void tz_free(void* user_data, void* ptr)
 {
-  free(ptr);
+  free(((void**) ptr)[-1]);
 }
 
 tz_cb_allocator tz_default_cb_allocator()
@@ -139,10 +153,11 @@ tz_gfx_device* tz_create_device(const tz_gfx_device_params* device_config)
 
 void tz_delete_device(tz_gfx_device* device)
 {
-  TZ_FREE(device->allocator, device);
+  free(device);
+  //TZ_FREE(device->allocator, device);
 }
 
 tz_shader_stage tz_create_shader_stage(tz_gfx_device* device, const tz_shader_stage_params* shader_stage_create_info)
 {
-  tz_gfx_device_gl* device_gl = (tz_gfx_device_gl*) device;
+  tz_gfx_device_gl* device_gl = (tz_gfx_device_gl*) device->backend_data;
 }
