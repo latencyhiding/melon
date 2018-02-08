@@ -203,6 +203,10 @@ typedef struct tz_gfx_device tz_gfx_device;
 // Returns the default allocator for our backend
 tz_cb_allocator tz_default_cb_allocator();
 
+/// TODO
+#define TZ_GFX_API_FUNC
+///
+
 tz_gfx_device* tz_create_device(const tz_gfx_device_params* device_config);
 void tz_delete_device(tz_gfx_device* device);
 

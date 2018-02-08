@@ -104,6 +104,26 @@ struct tz_gfx_device
   void* backend_data;
 };
 
+static void create_gfx_device(tz_gfx_device* device, const tz_gfx_device_params* device_config)
+{
+  device->allocator = device_config->allocator;
+  
+  tz_create_pool(&device->shader_stage_pool, device_config->max_shader_stages, &device_config->allocator);
+  tz_create_pool(&device->shader_pool, device_config->max_shaders, &device_config->allocator);
+  tz_create_pool(&device->buffer_pool, device_config->max_buffers, &device_config->allocator);
+  tz_create_pool(&device->vertex_format_pool, device_config->max_vertex_formats, &device_config->allocator);
+  tz_create_pool(&device->pipeline_pool, device_config->max_pipelines, &device_config->allocator);
+}
+
+static void destroy_gfx_device(tz_gfx_device* device)
+{
+  tz_delete_pool(&device->shader_stage_pool);
+  tz_delete_pool(&device->shader_pool);
+  tz_delete_pool(&device->buffer_pool);
+  tz_delete_pool(&device->vertex_format_pool);
+  tz_delete_pool(&device->pipeline_pool);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // OPENGL
 ////////////////////////////////////////////////////////////////////////////////
@@ -135,28 +155,22 @@ tz_gfx_device* tz_create_device(const tz_gfx_device_params* device_config)
                     + device_config->max_pipelines * sizeof(tz_pipeline) + DEVICE_ALIGN;
   
   tz_gfx_device* return_device = (tz_gfx_device*) TZ_ALLOC(device_config->allocator, total_size, DEVICE_ALIGN);
-  return_device->allocator = device_config->allocator;
+  create_gfx_device(return_device, device_config);
   
   tz_gfx_device_gl* device = (tz_gfx_device_gl*) align_forward(return_device + 1, DEVICE_ALIGN);
-  
   device->shader_stages = (GLuint*) align_forward(device + 1, DEVICE_ALIGN);
-  
   device->shader_programs = (GLuint*) align_forward(device->shader_stages + device_config->max_shader_stages, DEVICE_ALIGN);
-
   device->buffers = (GLuint*) align_forward(device->shader_programs + device_config->max_shaders, DEVICE_ALIGN);
-
   device->vertex_formats = (tz_vertex_format_params*) align_forward(device->buffers + device_config->max_buffers, DEVICE_ALIGN);
-
   device->pipelines = (tz_pipeline_params*) align_forward(device->vertex_formats + device_config->max_vertex_formats, DEVICE_ALIGN);
-
   device->params = *device_config;
-
 
   return return_device;
 }
 
 void tz_delete_device(tz_gfx_device* device)
 {
+  destroy_gfx_device(device);
   TZ_FREE(device->allocator, device);
 }
 
