@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 inline static void* align_forward(void* ptr, size_t align)
 {
@@ -12,7 +13,7 @@ inline static void* align_forward(void* ptr, size_t align)
 static void* tz_malloc(void* user_data, size_t size, size_t align)
 {
   size_t offset = align + sizeof(void*);
-  void* ptr = malloc(size + sizeof(void*) + align);
+  void* ptr = malloc(size + offset);
 
   if (ptr == NULL)
     return NULL;
@@ -26,7 +27,7 @@ static void* tz_malloc(void* user_data, size_t size, size_t align)
 static void* tz_realloc(void* user_data, void* ptr, size_t size, size_t align)
 {
   size_t offset = align + sizeof(void*);
-  void* new_ptr = realloc(ptr, size + sizeof(void*) + align);
+  void* new_ptr = realloc(ptr, size + offset);
 
   if (new_ptr == NULL)
     return NULL;
@@ -134,6 +135,8 @@ tz_gfx_device* tz_create_device(const tz_gfx_device_params* device_config)
                     + device_config->max_pipelines * sizeof(tz_pipeline) + DEVICE_ALIGN;
   
   tz_gfx_device* return_device = (tz_gfx_device*) TZ_ALLOC(device_config->allocator, total_size, DEVICE_ALIGN);
+  return_device->allocator = device_config->allocator;
+  
   tz_gfx_device_gl* device = (tz_gfx_device_gl*) align_forward(return_device + 1, DEVICE_ALIGN);
   
   device->shader_stages = (GLuint*) align_forward(device + 1, DEVICE_ALIGN);
@@ -148,13 +151,13 @@ tz_gfx_device* tz_create_device(const tz_gfx_device_params* device_config)
 
   device->params = *device_config;
 
+
   return return_device;
 }
 
 void tz_delete_device(tz_gfx_device* device)
 {
-  free(device);
-  //TZ_FREE(device->allocator, device);
+  TZ_FREE(device->allocator, device);
 }
 
 tz_shader_stage tz_create_shader_stage(tz_gfx_device* device, const tz_shader_stage_params* shader_stage_create_info)
