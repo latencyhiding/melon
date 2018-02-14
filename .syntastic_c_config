@@ -1,5 +1,5 @@
 -Ithirdparty/glad/include
 -Ithirdparty/glfw/include
 -Ithirdparty
--Ilib/gl_utils/include
+-Ilib
 -Iinclude
