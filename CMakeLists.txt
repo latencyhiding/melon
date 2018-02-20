@@ -31,14 +31,15 @@ add_library(header_only_impls STATIC
                               thirdparty/header_only_impls.c)
 include_directories(thirdparty)
 
-# libs
+## libs
 include_directories(lib)
-
 # engine lib
-add_library(engine STATIC
-                   lib/engine/graphics_backend.c)
+set(LIB_NAME engine)
+add_library(${LIB_NAME} STATIC
+                        lib/engine/graphics_backend.c)
 
-# tests
+## tests
+enable_testing()
 add_subdirectory(test)
 
 ##
