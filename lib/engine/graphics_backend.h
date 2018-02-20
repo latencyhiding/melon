@@ -201,7 +201,7 @@ typedef struct tz_gfx_device tz_gfx_device;
 #define TZ_FREE(allocator, ptr) (allocator.dealloc(allocator.user_data, ptr))
 
 // Returns the default allocator for our backend
-tz_cb_allocator tz_default_cb_allocator();
+const tz_cb_allocator* tz_default_cb_allocator();
 
 /// TODO
 #define TZ_GFX_API_FUNC
