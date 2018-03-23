@@ -4,6 +4,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+////////////////////////////////////////////////////////////////////////////////
+// UTILS 
+////////////////////////////////////////////////////////////////////////////////
+
 inline static void* align_forward(void* ptr, size_t align)
 {
   uintptr_t uint_ptr = (uintptr_t) ptr;
@@ -62,8 +66,19 @@ const tz_cb_allocator* tz_default_cb_allocator()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// DISPATCH FUNCTIONS
+////////////////////////////////////////////////////////////////////////////////
+
+// OPENGL
+void tz_create_device_gl(tz_gfx_device* device, const tz_gfx_device_params* device_config);
+void tz_delete_device_gl(tz_gfx_device* device);
+tz_shader_stage tz_create_shader_stage_gl(tz_gfx_device* device, const tz_shader_stage_params* shader_stage_create_info);
+
+////////////////////////////////////////////////////////////////////////////////
 // TZ GFX
 ////////////////////////////////////////////////////////////////////////////////
+
+#define DEVICE_ALIGN 16
 
 void tz_create_pool(tz_pool* pool, size_t capacity, const tz_cb_allocator* allocator)
 {
@@ -108,28 +123,47 @@ struct tz_gfx_device
   tz_pool vertex_format_pool;
   tz_pool pipeline_pool; 
 
+  tz_gfx_device_resource_count resource_count;
   tz_cb_allocator allocator;
   void* backend_data;
 };
 
-static void create_gfx_device(tz_gfx_device* device, const tz_gfx_device_params* device_config)
+void tz_delete_device(tz_gfx_device* device)
 {
-  device->allocator = device_config->allocator;
+  // TEMPORARY, this function should dispatch dynamically to whatever api is selected
+  tz_delete_device_gl(device);
 
-  tz_create_pool(&device->shader_stage_pool, device_config->max_shader_stages, &device_config->allocator);
-  tz_create_pool(&device->shader_pool, device_config->max_shaders, &device_config->allocator);
-  tz_create_pool(&device->buffer_pool, device_config->max_buffers, &device_config->allocator);
-  tz_create_pool(&device->vertex_format_pool, device_config->max_vertex_formats, &device_config->allocator);
-  tz_create_pool(&device->pipeline_pool, device_config->max_pipelines, &device_config->allocator);
+  tz_delete_pool(&(device->shader_stage_pool));
+  tz_delete_pool(&(device->shader_pool));
+  tz_delete_pool(&(device->buffer_pool));
+  tz_delete_pool(&(device->vertex_format_pool));
+  tz_delete_pool(&(device->pipeline_pool));
+
+  TZ_FREE(device->allocator, device);
 }
 
-static void destroy_gfx_device(tz_gfx_device* device)
+tz_gfx_device* tz_create_device(const tz_gfx_device_params* device_config)
 {
-  tz_delete_pool(&device->shader_stage_pool);
-  tz_delete_pool(&device->shader_pool);
-  tz_delete_pool(&device->buffer_pool);
-  tz_delete_pool(&device->vertex_format_pool);
-  tz_delete_pool(&device->pipeline_pool);
+  tz_gfx_device* device = TZ_ALLOC((*(device_config->allocator)), sizeof(tz_gfx_device), DEVICE_ALIGN);
+  device->allocator = *(device_config->allocator);
+  device->resource_count = device_config->resource_count;
+
+  tz_create_pool(&device->shader_stage_pool, device_config->resource_count.max_shader_stages, device_config->allocator);
+  tz_create_pool(&device->shader_pool, device_config->resource_count.max_shaders, device_config->allocator);
+  tz_create_pool(&device->buffer_pool, device_config->resource_count.max_buffers, device_config->allocator);
+  tz_create_pool(&device->vertex_format_pool, device_config->resource_count.max_vertex_formats, device_config->allocator);
+  tz_create_pool(&device->pipeline_pool, device_config->resource_count.max_pipelines, device_config->allocator);
+
+  // TEMPORARY, this function should dispatch dynamically to whatever api is selected
+  tz_create_device_gl(device, device_config);
+
+  return device;
+}
+
+// TEMPORARY, this function should dispatch dynamically to whatever api is selected
+tz_shader_stage tz_create_shader_stage(tz_gfx_device* device, const tz_shader_stage_params* shader_stage_create_info)
+{
+  return tz_create_shader_stage_gl(device, shader_stage_create_info);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -137,7 +171,6 @@ static void destroy_gfx_device(tz_gfx_device* device)
 ////////////////////////////////////////////////////////////////////////////////
 
 #include <glad/glad.h>
-#include <GLFW/glfw3.h>
 
 typedef struct 
 {
@@ -147,42 +180,33 @@ typedef struct
   tz_vertex_format_params* vertex_formats; 
   tz_pipeline_params* pipelines;
 
-  tz_gfx_device_params params;
 } tz_gfx_device_gl;
 
-#define DEVICE_ALIGN 16
-
-tz_gfx_device* tz_create_device(const tz_gfx_device_params* device_config)
+void tz_create_device_gl(tz_gfx_device* device, const tz_gfx_device_params* device_config)
 {
-  size_t total_size = sizeof(tz_gfx_device) + DEVICE_ALIGN
-    + sizeof(tz_gfx_device_gl) + DEVICE_ALIGN
-    + device_config->max_shader_stages * sizeof(GLuint) + DEVICE_ALIGN
-    + device_config->max_shaders * sizeof(GLuint) + DEVICE_ALIGN
-    + device_config->max_buffers * sizeof(GLuint) + DEVICE_ALIGN
-    + device_config->max_vertex_formats * sizeof(tz_vertex_format) + DEVICE_ALIGN
-    + device_config->max_pipelines * sizeof(tz_pipeline) + DEVICE_ALIGN;
+  size_t total_size = sizeof(tz_gfx_device_gl) + DEVICE_ALIGN
+    + device_config->resource_count.max_shader_stages * sizeof(GLuint) + DEVICE_ALIGN
+    + device_config->resource_count.max_shaders * sizeof(GLuint) + DEVICE_ALIGN
+    + device_config->resource_count.max_buffers * sizeof(GLuint) + DEVICE_ALIGN
+    + device_config->resource_count.max_vertex_formats * sizeof(tz_vertex_format) + DEVICE_ALIGN
+    + device_config->resource_count.max_pipelines * sizeof(tz_pipeline) + DEVICE_ALIGN;
 
-  tz_gfx_device* return_device = (tz_gfx_device*) TZ_ALLOC(device_config->allocator, total_size, DEVICE_ALIGN);
-  create_gfx_device(return_device, device_config);
+  tz_gfx_device_gl* device_gl = (tz_gfx_device_gl*) TZ_ALLOC((*(device_config->allocator)), total_size, DEVICE_ALIGN);
+  device_gl->shader_stages = (GLuint*) align_forward(device + 1, DEVICE_ALIGN);
+  device_gl->shader_programs = (GLuint*) align_forward(device_gl->shader_stages + device_config->resource_count.max_shader_stages, DEVICE_ALIGN);
+  device_gl->buffers = (GLuint*) align_forward(device_gl->shader_programs + device_config->resource_count.max_shaders, DEVICE_ALIGN);
+  device_gl->vertex_formats = (tz_vertex_format_params*) align_forward(device_gl->buffers + device_config->resource_count.max_buffers, DEVICE_ALIGN);
+  device_gl->pipelines = (tz_pipeline_params*) align_forward(device_gl->vertex_formats + device_config->resource_count.max_vertex_formats, DEVICE_ALIGN);
 
-  tz_gfx_device_gl* device = (tz_gfx_device_gl*) align_forward(return_device + 1, DEVICE_ALIGN);
-  device->shader_stages = (GLuint*) align_forward(device + 1, DEVICE_ALIGN);
-  device->shader_programs = (GLuint*) align_forward(device->shader_stages + device_config->max_shader_stages, DEVICE_ALIGN);
-  device->buffers = (GLuint*) align_forward(device->shader_programs + device_config->max_shaders, DEVICE_ALIGN);
-  device->vertex_formats = (tz_vertex_format_params*) align_forward(device->buffers + device_config->max_buffers, DEVICE_ALIGN);
-  device->pipelines = (tz_pipeline_params*) align_forward(device->vertex_formats + device_config->max_vertex_formats, DEVICE_ALIGN);
-  device->params = *device_config;
-
-  return return_device;
+  device->backend_data = device_gl;
 }
 
-void tz_delete_device(tz_gfx_device* device)
+void tz_delete_device_gl(tz_gfx_device* device)
 {
-  destroy_gfx_device(device);
-  TZ_FREE(device->allocator, device);
+  TZ_FREE(device->allocator, device->backend_data);
 }
 
-tz_shader_stage tz_create_shader_stage(tz_gfx_device* device, const tz_shader_stage_params* shader_stage_create_info)
+tz_shader_stage tz_create_shader_stage_gl(tz_gfx_device* device, const tz_shader_stage_params* shader_stage_create_info)
 {
   tz_gfx_device_gl* device_gl = (tz_gfx_device_gl*) device->backend_data;
 }

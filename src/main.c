@@ -48,16 +48,18 @@ int main()
   glfwSetKeyCallback(window, key_callback);
 
   tz_gfx_device_params gfx_device_params = {
-    .max_shader_stages = 100,
-    .max_shaders = 100,
-    .max_buffers = 100,
-    .max_vertex_formats = 100,
-    .max_pipelines = 100,
+    .resource_count = {
+      .max_shader_stages = 100,
+      .max_shaders = 100,
+      .max_buffers = 100,
+      .max_vertex_formats = 100,
+      .max_pipelines = 100,
+    },
     .allocator = tz_default_cb_allocator()
   };
 
   tz_gfx_device* device = tz_create_device(&gfx_device_params);
-  
+
   while (!glfwWindowShouldClose(window))
   {
     // Input
@@ -68,6 +70,6 @@ int main()
   }
 
   tz_delete_device(device);
-  
+
   return 0;
 }

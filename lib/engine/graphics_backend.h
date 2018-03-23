@@ -179,8 +179,11 @@ typedef struct
   size_t max_buffers;
   size_t max_vertex_formats;
   size_t max_pipelines;
-
-  tz_cb_allocator allocator;
+} tz_gfx_device_resource_count;
+typedef struct
+{
+  tz_gfx_device_resource_count resource_count;
+  const tz_cb_allocator* allocator;
 } tz_gfx_device_params;
 
 ////////////////////////////////////////////////////////////////////////////////
