@@ -5,6 +5,8 @@
 #include <stdlib.h>
 
 #include <engine/graphics_backend.h>
+#include <engine/file_utils.h>
+#include <engine/error.h>
 
 static void error_callback(int error, const char *description)
 {
@@ -25,7 +27,7 @@ int main()
   GLFWwindow* window;
   if (!glfwInit())
     exit(EXIT_FAILURE);
-  
+
   glfwSetErrorCallback(error_callback);
 
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -33,42 +35,51 @@ int main()
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
   glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
-  
+
   window = glfwCreateWindow(WIDTH, HEIGHT, "", NULL, NULL);
   if (!window)
   {
     glfwTerminate();
     exit(EXIT_FAILURE);
   }
-  
+
   glfwMakeContextCurrent(window);
-  
-  gladLoadGLLoader((GLADloadproc) glfwGetProcAddress);
+
+  gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
 
   glfwSetKeyCallback(window, key_callback);
 
-  tz_gfx_device_params gfx_device_params = {
-    .resource_count = {
-      .max_shader_stages = 100,
-      .max_shaders = 100,
-      .max_buffers = 100,
-      .max_vertex_formats = 100,
-      .max_pipelines = 100,
+  tz_gfx_device* device = tz_create_device(NULL);
+
+  const char* vertex_source = tz_load_text_file(NULL, "../assets/shaders/passthrough.vert");
+  TZ_ASSERT(vertex_source);
+  const char* fragment_source = tz_load_text_file(NULL, "../assets/shaders/passthrough.frag");
+  TZ_ASSERT(fragment_source);
+
+  tz_shader_params shader_params = {
+    .vertex_shader = {
+      .name = "passthrough.vert",
+      .source = vertex_source,
+      .size = strlen(vertex_source)
     },
-    .allocator = tz_default_cb_allocator()
+    .fragment_shader = {
+      .name = "passthrough.frag",
+      .source = fragment_source,
+      .size = strlen(fragment_source)
+    }
   };
 
-  tz_gfx_device* device = tz_create_device(&gfx_device_params);
+  tz_shader shader_program = tz_create_shader(device, &shader_params);
 
   while (!glfwWindowShouldClose(window))
   {
-    // Input
     glfwPollEvents();
     glClearColor(0, 0, 0, 0);
 
     glfwSwapBuffers(window);
   }
-
+  
+  tz_delete_shader(device, shader_program);
   tz_delete_device(device);
 
   return 0;

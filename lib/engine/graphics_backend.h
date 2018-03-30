@@ -4,6 +4,14 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "core.h"
+
+/**
+ TODO:
+ 1. Uniforms
+ 2. Textures
+*/
+
 ////////////////////////////////////////////////////////////////////////////////
 // Constants
 ////////////////////////////////////////////////////////////////////////////////
@@ -17,41 +25,9 @@
 #define TZ_MAX_RESOURCE_SETS_PER_PIPELINE 4
 
 ////////////////////////////////////////////////////////////////////////////////
-// Description Types 
-// - The following types are used to describe resources
+// description types 
+// - the following types are used to describe resources
 ////////////////////////////////////////////////////////////////////////////////
-
-// Functors for allocation callbacks
-typedef struct
-{
-  void* (*alloc) (void* user_data, size_t size, size_t align);
-  void* (*realloc) (void* user_data, void* ptr, size_t size, size_t align);
-  void (*dealloc) (void* user_data, void* ptr);
-
-  void* user_data;
-} tz_cb_allocator;
-
-/* tz_pool - a pool with a stack-like behavior. Indices are allocated in a FIFO
- * order.
- */
-#define TZ_POOL_INVALID_INDEX ~0
-#define TZ_INVALID_ID(id) (id.index == TZ_POOL_INVALID_INDEX)
-typedef uint32_t tz_pool_index;
-#define TZ_ID(name) typedef struct {tz_pool_index id;} name;
-
-typedef struct
-{
-  tz_pool_index* free_indices;
-  size_t capacity;
-  size_t num_free_indices;
-
-  tz_cb_allocator allocator;
-} tz_pool;
-
-void tz_create_pool(tz_pool* pool, size_t capacity, const tz_cb_allocator* allocator);
-void tz_delete_pool(tz_pool* pool);
-tz_pool_index tz_pool_create_id(tz_pool* pool);
-void tz_pool_delete_id(tz_pool* pool, tz_pool_index index);
 
 /* tz_*_id - typesafe wrappers for ids of different kinds of resources
  */
@@ -60,7 +36,6 @@ TZ_ID(tz_buffer);
 TZ_ID(tz_vertex_format);
 TZ_ID(tz_uniform_block);
 TZ_ID(tz_texture);
-TZ_ID(tz_shader_stage);
 TZ_ID(tz_shader);
 TZ_ID(tz_resource_package);
 TZ_ID(tz_pipeline);
@@ -146,12 +121,9 @@ typedef struct
   tz_vertex_attrib_params attribs[TZ_MAX_ATTRIBUTES];
 } tz_vertex_format_params;
 
-/* tz_shader_stage - Struct defining a shader stage
- * NOTE: for simplicity's sake, shaders are considered a single unit when resources
- * are concerned. Uniforms are bound for every stage.
- */
 typedef struct
 {
+  const char* name;
   const char* source;
   size_t size;
 } tz_shader_stage_params;
@@ -160,8 +132,8 @@ typedef struct
 */
 typedef struct
 {
-  tz_shader_stage vertex_shader;
-  tz_shader_stage fragment_shader;
+  tz_shader_stage_params vertex_shader;
+  tz_shader_stage_params fragment_shader;
 } tz_shader_params;
 
 typedef struct
@@ -174,15 +146,16 @@ typedef struct
  */
 typedef struct
 {
-  size_t max_shader_stages;
   size_t max_shaders;
   size_t max_buffers;
   size_t max_vertex_formats;
   size_t max_pipelines;
 } tz_gfx_device_resource_count;
+
 typedef struct
 {
   tz_gfx_device_resource_count resource_count;
+
   const tz_cb_allocator* allocator;
 } tz_gfx_device_params;
 
@@ -199,22 +172,20 @@ typedef struct tz_gfx_device tz_gfx_device;
 // Functions
 ////////////////////////////////////////////////////////////////////////////////
 
-#define TZ_ALLOC(allocator, size, align) (allocator.alloc(allocator.user_data, size, align))
-#define TZ_REALLOC(allocator, ptr, size, align) (allocator.realloc(allocator.user_data, ptr, size, align))
-#define TZ_FREE(allocator, ptr) (allocator.dealloc(allocator.user_data, ptr))
-
-// Returns the default allocator for our backend
-const tz_cb_allocator* tz_default_cb_allocator();
-
 /// TODO
 #define TZ_GFX_API_FUNC
 ///
 
-tz_gfx_device* tz_create_device(const tz_gfx_device_params* device_config);
+tz_gfx_device_params tz_default_gfx_device_params();
+/* tz_create_device - creates an opaque pointer to a tz_gfx_device
+*  device_config - parameter struct containing the parameters of a device.
+*                  default parameters will be used if this is NULL.
+*/
+tz_gfx_device* tz_create_device(tz_gfx_device_params* device_config);
 void tz_delete_device(tz_gfx_device* device);
 
-tz_shader_stage tz_create_shader_stage(tz_gfx_device* device, const tz_shader_stage_params* shader_stage_create_info);
 tz_shader tz_create_shader(tz_gfx_device* device, const tz_shader_params* shader_create_info);
+void tz_delete_shader(tz_gfx_device* device, tz_shader shader);
 tz_buffer tz_create_buffer(tz_gfx_device* device, const tz_buffer_params* buffer_create_info);
 tz_vertex_format tz_create_vertex_format(tz_gfx_device* device, const tz_vertex_format_params* vertex_format_info);
 
