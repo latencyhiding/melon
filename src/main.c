@@ -5,7 +5,6 @@
 #include <stdlib.h>
 
 #include <engine/graphics_backend.h>
-#include <engine/file_utils.h>
 #include <engine/error.h>
 
 static void error_callback(int error, const char *description)
@@ -19,6 +18,32 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
     glfwSetWindowShouldClose(window, GL_TRUE);
 }
 
+const char* load_text_file(const tz_cb_allocator* allocator, const char* filename)
+{
+  FILE* f = fopen(filename, "r");
+  size_t size = 0;
+  char* data = NULL;
+  const tz_cb_allocator* alloc = allocator ? allocator : tz_default_cb_allocator();
+
+  if (!f)
+  {
+    TZ_LOG("Can't find file: %s\n", filename);
+    return NULL;
+  }
+
+  fseek(f, 0L, SEEK_END);
+  size = ftell(f);
+  rewind(f);
+ 
+  data = (char*)malloc(size + 1);
+
+  fread(data, 1, size, f);
+  fclose(f);
+
+  data[size] = 0;
+
+  return data;
+}
 #define WIDTH 800
 #define HEIGHT 600
 
@@ -30,8 +55,8 @@ int main()
 
   glfwSetErrorCallback(error_callback);
 
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
   glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
@@ -51,9 +76,9 @@ int main()
 
   tz_gfx_device* device = tz_create_device(NULL);
 
-  const char* vertex_source = tz_load_text_file(NULL, "../assets/shaders/passthrough.vert");
+  const char* vertex_source = load_text_file(tz_default_cb_allocator(), "../assets/shaders/passthrough.vert");
   TZ_ASSERT(vertex_source);
-  const char* fragment_source = tz_load_text_file(NULL, "../assets/shaders/passthrough.frag");
+  const char* fragment_source = load_text_file(tz_default_cb_allocator(), "../assets/shaders/passthrough.frag");
   TZ_ASSERT(fragment_source);
 
   tz_shader_params shader_params = {
@@ -70,6 +95,9 @@ int main()
   };
 
   tz_shader shader_program = tz_create_shader(device, &shader_params);
+
+  free(vertex_source);
+  free(fragment_source);
 
   while (!glfwWindowShouldClose(window))
   {

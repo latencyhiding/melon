@@ -176,7 +176,7 @@ tz_shader tz_create_shader_gl(tz_gfx_device* device, const tz_shader_params* sha
   tz_shader shader_id = { TZ_POOL_INVALID_INDEX };
   
   GLuint vertex_shader = compile_shader(device, GL_VERTEX_SHADER, &shader_create_info->vertex_shader);
-  GLuint fragment_shader = compile_shader(device, GL_VERTEX_SHADER, &shader_create_info->fragment_shader);
+  GLuint fragment_shader = compile_shader(device, GL_FRAGMENT_SHADER, &shader_create_info->fragment_shader);
 
   if (!vertex_shader
     || !fragment_shader)
@@ -192,11 +192,11 @@ tz_shader tz_create_shader_gl(tz_gfx_device* device, const tz_shader_params* sha
   glLinkProgram(program);
 
   GLint linked = 0;
-  glGetProgramiv(program, GL_LINK_STATUS, (int*) &program);
+  glGetProgramiv(program, GL_LINK_STATUS, (int*) &linked);
   if (linked == GL_FALSE)
   {
     GLint len = 0;
-    glGetProgramiv(linked, GL_INFO_LOG_LENGTH, &len);
+    glGetProgramiv(program, GL_INFO_LOG_LENGTH, &len);
 
     char* error_buffer = TZ_ALLOC(device->allocator, sizeof(char) * len, DEVICE_ALIGN);
     glGetProgramInfoLog(program, len, &len, error_buffer);
