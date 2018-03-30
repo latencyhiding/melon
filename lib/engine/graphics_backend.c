@@ -9,7 +9,15 @@
 // OPENGL
 void tz_create_device_gl(tz_gfx_device* device, const tz_gfx_device_params* device_config);
 void tz_delete_device_gl(tz_gfx_device* device);
+
 tz_shader tz_create_shader_gl(tz_gfx_device* device, const tz_shader_params* shader_create_info);
+void tz_delete_shader_gl(tz_gfx_device* device, tz_shader shader);
+
+tz_buffer tz_create_buffer_gl(tz_gfx_device* device, const tz_buffer_params* buffer_create_info);
+void tz_delete_buffer_gl(tz_gfx_device* device, tz_buffer buffer);
+
+tz_vertex_format tz_create_vertex_format_gl(tz_gfx_device* device, const tz_vertex_format_params* vertex_format_info);
+void tz_delete_vertex_format_gl(tz_gfx_device* device, tz_vertex_format format);
 
 ////////////////////////////////////////////////////////////////////////////////
 // TZ GFX
@@ -87,6 +95,32 @@ tz_shader tz_create_shader(tz_gfx_device* device, const tz_shader_params* shader
   return tz_create_shader_gl(device, shader_create_params);
 }
 
+// TEMPORARY, this function should dispatch dynamically to whatever api is selected
+void tz_delete_shader(tz_gfx_device* device, tz_shader shader)
+{
+  tz_delete_shader_gl(device, shader);
+}
+
+tz_buffer tz_create_buffer(tz_gfx_device* device, const tz_buffer_params* buffer_create_info)
+{
+  tz_create_buffer_gl(device, buffer_create_info);
+}
+
+void tz_delete_buffer(tz_gfx_device* device, tz_buffer buffer)
+{
+  tz_delete_buffer_gl(device, buffer);
+}
+
+tz_vertex_format tz_create_vertex_format(tz_gfx_device* device, const tz_vertex_format_params* vertex_format_info)
+{
+  return tz_create_vertex_format_gl(device, vertex_format_info);
+}
+
+void tz_delete_vertex_format(tz_gfx_device* device, tz_vertex_format format)
+{
+  tz_delete_vertex_format_gl(device, format);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // OPENGL
 ////////////////////////////////////////////////////////////////////////////////
@@ -142,7 +176,7 @@ static GLuint compile_shader(tz_gfx_device* device, GLenum type, const tz_shader
   // Create shader
   GLuint shader_stage = glCreateShader(type);
   // Compile shader
-  glShaderSource(shader_stage, 1, &shader_stage_create_info->source, (GLint*) &shader_stage_create_info->size);
+  glShaderSource(shader_stage, 1, &shader_stage_create_info->source, (GLint*)&shader_stage_create_info->size);
   // Compile the vertex shader
   glCompileShader(shader_stage);
 
@@ -174,7 +208,7 @@ tz_shader tz_create_shader_gl(tz_gfx_device* device, const tz_shader_params* sha
 {
   tz_gfx_device_gl* device_gl = (tz_gfx_device_gl*)device->backend_data;
   tz_shader shader_id = { TZ_POOL_INVALID_INDEX };
-  
+
   GLuint vertex_shader = compile_shader(device, GL_VERTEX_SHADER, &shader_create_info->vertex_shader);
   GLuint fragment_shader = compile_shader(device, GL_FRAGMENT_SHADER, &shader_create_info->fragment_shader);
 
@@ -192,7 +226,7 @@ tz_shader tz_create_shader_gl(tz_gfx_device* device, const tz_shader_params* sha
   glLinkProgram(program);
 
   GLint linked = 0;
-  glGetProgramiv(program, GL_LINK_STATUS, (int*) &linked);
+  glGetProgramiv(program, GL_LINK_STATUS, (int*)&linked);
   if (linked == GL_FALSE)
   {
     GLint len = 0;
@@ -211,7 +245,7 @@ tz_shader tz_create_shader_gl(tz_gfx_device* device, const tz_shader_params* sha
     // Return invalid id if error
     return shader_id;
   }
-  
+
   glDetachShader(program, vertex_shader);
   glDetachShader(program, fragment_shader);
   glDeleteShader(vertex_shader);
@@ -220,7 +254,28 @@ tz_shader tz_create_shader_gl(tz_gfx_device* device, const tz_shader_params* sha
   return tz_gfx_device_add_shader_gl(device, program);
 }
 
-void tz_delete_shader(tz_gfx_device* device, tz_shader shader)
+void tz_delete_shader_gl(tz_gfx_device* device, tz_shader shader)
 {
   tz_pool_delete_id(&device->shader_pool, shader.index);
 }
+
+tz_buffer tz_create_buffer_gl(tz_gfx_device* device, const tz_buffer_params* buffer_create_info)
+{
+
+}
+
+void tz_delete_buffer_gl(tz_gfx_device* device, tz_buffer buffer)
+{
+
+}
+
+tz_vertex_format tz_create_vertex_format_gl(tz_gfx_device* device, const tz_vertex_format_params* vertex_format_info)
+{
+
+}
+
+void tz_delete_vertex_format_gl(tz_gfx_device* device, tz_vertex_format format)
+{
+  
+}
+

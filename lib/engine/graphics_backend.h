@@ -186,7 +186,12 @@ void tz_delete_device(tz_gfx_device* device);
 
 tz_shader tz_create_shader(tz_gfx_device* device, const tz_shader_params* shader_create_info);
 void tz_delete_shader(tz_gfx_device* device, tz_shader shader);
+
 tz_buffer tz_create_buffer(tz_gfx_device* device, const tz_buffer_params* buffer_create_info);
+void tz_delete_buffer(tz_gfx_device* device, tz_buffer buffer);
+
 tz_vertex_format tz_create_vertex_format(tz_gfx_device* device, const tz_vertex_format_params* vertex_format_info);
+void tz_delete_vertex_format(tz_gfx_device* device, tz_vertex_format format);
+
 
 #endif 

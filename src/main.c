@@ -40,10 +40,11 @@ static const char* load_text_file(const tz_cb_allocator* allocator, const char* 
   fread(data, 1, size, f);
   fclose(f);
 
-  data[size] = 0;
+  data[size] = '\0';
 
   return data;
 }
+
 #define WIDTH 800
 #define HEIGHT 600
 
