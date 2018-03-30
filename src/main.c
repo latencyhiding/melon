@@ -18,7 +18,7 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
     glfwSetWindowShouldClose(window, GL_TRUE);
 }
 
-const char* load_text_file(const tz_cb_allocator* allocator, const char* filename)
+static const char* load_text_file(const tz_cb_allocator* allocator, const char* filename)
 {
   FILE* f = fopen(filename, "r");
   size_t size = 0;
