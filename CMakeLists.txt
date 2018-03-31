@@ -38,8 +38,8 @@ include_directories(lib)
 # engine lib
 set(LIB_NAME engine)
 add_library(${LIB_NAME} STATIC
-                        lib/engine/core.c
-                        lib/engine/graphics_backend.c)
+                        lib/engine/tz_core.c
+                        lib/engine/tz_graphics_backend.c)
 set_property(TARGET ${LIB_NAME} PROPERTY C_STANDARD 99)
 
 ## tests

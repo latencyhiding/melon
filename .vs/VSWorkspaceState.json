@@ -1,0 +1,12 @@
+{
+  "ExpandedNodes": [
+    "",
+    "\\assets",
+    "\\assets\\shaders",
+    "\\lib",
+    "\\lib\\engine",
+    "\\src"
+  ],
+  "SelectedNode": "\\lib\\engine\\graphics_backend.h",
+  "PreviewInSolutionExplorer": false
+}

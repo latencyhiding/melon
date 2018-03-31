@@ -4,8 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <engine/graphics_backend.h>
-#include <engine/error.h>
+#include <engine/tz_graphics_backend.h>
+#include <engine/tz_error.h>
 
 static void error_callback(int error, const char *description)
 {
