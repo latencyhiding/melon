@@ -164,8 +164,8 @@ TZ_GFX_CREATE_SHADER(tz_create_shader_gl)
 
   shader_id.id = tz_pool_create_id(&device->shader_pool);
 
-  if (!tz_pool_id_is_valid(&device->shader_pool, shader_id.id));
-  return shader_id;
+  if (!tz_pool_id_is_valid(&device->shader_pool, shader_id.id))
+    return shader_id;
 
   device_gl->shader_programs[shader_id.id.index] = program;
 
@@ -215,7 +215,7 @@ static GLenum gl_buffer_usage(tz_buffer_usage usage)
 TZ_GFX_CREATE_BUFFER(tz_create_buffer_gl)
 {
   tz_gfx_device_gl* device_gl = (tz_gfx_device_gl*)device->backend_data;
-  tz_buffer buffer_id = { tz_pool_gen_invalid_id() };
+  tz_buffer buffer_id = TZ_INVALID_ID(tz_buffer);
 
   GLuint buf = 0;
   GLenum binding = GL_ARRAY_BUFFER; // This is set to GL_ARRAY_BUFFER because at this stage the binding doesn't matter. This is just to get the buffer bound.
@@ -303,14 +303,14 @@ TZ_GFX_CREATE_PIPELINE(tz_create_pipeline_gl)
     if (!tz_pool_id_is_valid(&device->buffer_pool, pipeline_create_info->buffer_attachments[i].id))
     {
       TZ_LOG("Pipeline creation error: buffer format ID invalid.\n");
-      return pipeline_id;
+      return TZ_INVALID_ID(tz_pipeline);
     }
   }
 
   if (!tz_pool_id_is_valid(&device->shader_pool, pipeline_create_info->shader_program.id));
   {
     TZ_LOG("Pipeline creation error: shader program ID invalid.\n");
-    return pipeline_id;
+    return TZ_INVALID_ID(tz_pipeline);
   }
 
   device_gl->pipelines[pipeline_id.id.index] = *pipeline_create_info;
@@ -327,7 +327,7 @@ TZ_GFX_DELETE_PIPELINE(tz_delete_pipeline_gl)
 TZ_GFX_EXECUTE_DRAW_CALL(tz_execute_draw_call_gl)
 {
   tz_gfx_device_gl* device_gl = (tz_gfx_device_gl*)device->backend_data;
-  
+
   tz_pipeline_params* pipeline = device_gl->pipelines + pipeline_id.id.index;
 }
 

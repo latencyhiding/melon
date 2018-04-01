@@ -56,10 +56,6 @@ typedef struct
   tz_pool_index index;
 } tz_pool_id;
 
-#define TZ_ID(name) typedef struct {tz_pool_id id;} name;
-#define TZ_POOL_INVALID_INDEX ((tz_pool_index) ~0)
-#define TZ_POOL_MAX_GENERATION ((tz_pool_generation) ~0)
-
 typedef struct
 {
   tz_pool_index* free_indices;
@@ -76,5 +72,11 @@ tz_pool_id tz_pool_create_id(tz_pool* pool);
 bool tz_pool_id_is_valid(tz_pool* pool, tz_pool_id id);
 tz_pool_id tz_pool_gen_invalid_id();
 bool tz_pool_delete_id(tz_pool* pool, tz_pool_id index);
+
+#define TZ_ID(name) typedef struct {tz_pool_id id;} name;
+#define TZ_INVALID_ID(type) (type) { tz_pool_gen_invalid_id() };
+#define TZ_POOL_INVALID_INDEX ((tz_pool_index) ~0)
+#define TZ_POOL_MAX_GENERATION ((tz_pool_generation) ~0)
+
 
 #endif
