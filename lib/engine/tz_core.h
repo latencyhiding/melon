@@ -10,7 +10,7 @@
 // Utility for aligning pointers
 inline static void* align_forward(void* ptr, size_t align)
 {
-  if (!align)
+  if (align == 0)
     return ptr;
   uintptr_t uint_ptr = (uintptr_t) ptr;
   return (void*) (uint_ptr + (align - (uint_ptr % align)));
@@ -57,7 +57,8 @@ typedef struct
 } tz_pool_id;
 
 #define TZ_ID(name) typedef struct {tz_pool_id id;} name;
-#define TZ_POOL_INVALID_INDEX ~0
+#define TZ_POOL_INVALID_INDEX ((tz_pool_index) ~0)
+#define TZ_POOL_MAX_GENERATION ((tz_pool_generation) ~0)
 
 typedef struct
 {
@@ -74,6 +75,6 @@ void tz_delete_pool(tz_pool* pool);
 tz_pool_id tz_pool_create_id(tz_pool* pool);
 bool tz_pool_id_is_valid(tz_pool* pool, tz_pool_id id);
 tz_pool_id tz_pool_gen_invalid_id();
-void tz_pool_delete_id(tz_pool* pool, tz_pool_id index);
+bool tz_pool_delete_id(tz_pool* pool, tz_pool_id index);
 
 #endif

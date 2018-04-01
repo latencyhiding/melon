@@ -98,11 +98,22 @@ void tz_delete_pool(tz_pool* pool)
 tz_pool_id tz_pool_create_id(tz_pool* pool)
 {
   tz_pool_id new_id = tz_pool_gen_invalid_id();
-  if (pool->num_free_indices == 0)
-    return new_id;
 
-  new_id.index = pool->free_indices[--pool->num_free_indices];
-  new_id.generation = pool->generations[new_id.index];
+  tz_pool_index index;
+  tz_pool_generation generation;
+
+  // Pop free indices off the stack until one with a valid generation is found
+  do
+  {
+    if (pool->num_free_indices == 0)
+      return new_id;
+
+    index = pool->free_indices[--pool->num_free_indices];
+    generation = pool->generations[index];
+  } while (generation > TZ_POOL_MAX_GENERATION);
+
+  new_id.index = index;
+  new_id.generation = generation;
 
   return new_id;
 }
@@ -119,16 +130,18 @@ tz_pool_id tz_pool_gen_invalid_id()
   return (tz_pool_id) { 0, TZ_POOL_INVALID_INDEX };
 }
 
-void tz_pool_delete_id(tz_pool* pool, tz_pool_id id)
+bool tz_pool_delete_id(tz_pool* pool, tz_pool_id id)
 {
   if (!tz_pool_id_is_valid(pool, id))
-    return;
+    return false;
 
   // if the number of free indices >= the capacity, the pool is empty
   if (pool->num_free_indices >= pool->capacity)
-    return;
+    return false;
 
   pool->free_indices[pool->num_free_indices++] = id.index;
   pool->generations[id.index]++;
+
+  return true;
 }
 

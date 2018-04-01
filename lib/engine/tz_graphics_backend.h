@@ -33,7 +33,7 @@
  */
 
 TZ_ID(tz_buffer);
-TZ_ID(tz_vertex_format);
+TZ_ID(tz_buffer_format);
 TZ_ID(tz_uniform_block);
 TZ_ID(tz_texture);
 TZ_ID(tz_shader);
@@ -63,7 +63,7 @@ typedef enum
 {
   TZ_ARRAY_BUFFER,
   TZ_ELEMENT_BUFFER
-} tz_buffer_type;
+} tz_buffer_binding;
 
 /* tz_buffer_usage - Enum defining the buffer access patterns
 */
@@ -81,8 +81,8 @@ typedef struct
   void* data;
   size_t size;
   tz_buffer_usage usage;
-  tz_buffer_type type;
 } tz_buffer_params;
+inline static tz_buffer_params tz_gen_buffer_params() { return (tz_buffer_params) { 0, 0, TZ_STATIC_BUFFER }; }
 
 /* tz_vertex_attrib - Struct defining vertex attributes 
  *
@@ -97,30 +97,28 @@ typedef struct
  */
 typedef struct
 {
-  int buffer_binding;
   size_t offset;
   tz_vertex_data_type type;
   int size;
   int divisor;
 } tz_vertex_attrib_params;
 
-/* tz_vertex_format - Struct defining vertex formats
+/* tz_buffer_format - Struct defining the format of a buffer 
  *
- * type - type of the buffer
  * stride - number of bytes between attributes of one vertex to the next, aka the
- *          size of the vertex
- * num_attribs - number of attributes in a vertex, maximum TZ_MAX_ATTRIBUTES
+ *          size of the vertex. This is optional, fill in only if you have a custom stride
+ *          ie a particular alignment.
  * attribs - array containing vertex attributes
+ * num_attribs - number of attributes in a vertex, maximum TZ_MAX_ATTRIBUTES
  */
 typedef struct
 {
-  tz_buffer_type type;
-
   size_t stride;
-  size_t num_attribs;
 
   tz_vertex_attrib_params attribs[TZ_MAX_ATTRIBUTES];
-} tz_vertex_format_params;
+  size_t num_attribs;
+} tz_buffer_format_params;
+inline static tz_buffer_format_params tz_gen_buffer_format_params() { return (tz_buffer_format_params) { 0 }; }
 
 typedef struct
 {
@@ -136,12 +134,33 @@ typedef struct
   tz_shader_stage_params vertex_shader;
   tz_shader_stage_params fragment_shader;
 } tz_shader_params;
+inline static tz_shader_params tz_gen_shader_params() { return (tz_shader_params) { 0 }; }
 
 typedef struct
 {
-  tz_vertex_format vertex_format;
+  tz_buffer_format buffer_attachments[TZ_MAX_BUFFER_ATTACHMENTS];
+  size_t num_buffer_attachments;
+
   tz_shader shader_program;
 } tz_pipeline_params;
+inline static tz_pipeline_params tz_gen_pipeline_params() { return (tz_pipeline_params) { 0, 0, tz_pool_gen_invalid_id() }; }
+
+typedef struct
+{
+  tz_buffer buffers[TZ_MAX_BUFFER_ATTACHMENTS];
+  size_t num_buffers;
+
+  tz_buffer index_buffer;
+} tz_draw_resources;
+inline static tz_draw_resources tz_gen_draw_resources() { return (tz_draw_resources) { { 0 }, 0, { tz_pool_gen_invalid_id() } }; }
+
+typedef struct
+{
+  size_t instances;
+  size_t base_vertex;
+  size_t num_vertices;
+} tz_draw_call_params;
+inline static tz_draw_call_params tz_gen_draw_call_params() { return (tz_draw_call_params) { 0 }; }
 
 /* tz_gfx_device_config - Contains a description/settings for a gfx device
  */
@@ -149,14 +168,13 @@ typedef struct
 {
   size_t max_shaders;
   size_t max_buffers;
-  size_t max_vertex_formats;
+  size_t max_buffer_formats;
   size_t max_pipelines;
 } tz_gfx_device_resource_count;
 
 typedef struct
 {
   tz_gfx_device_resource_count resource_count;
-
   const tz_cb_allocator* allocator;
 
   enum
@@ -178,26 +196,53 @@ typedef struct tz_gfx_device tz_gfx_device;
 // Functions
 ////////////////////////////////////////////////////////////////////////////////
 
-/// TODO
-#define TZ_GFX_API_FUNC
-///
-
 tz_gfx_device_params tz_default_gfx_device_params();
 /* tz_create_device - creates an opaque pointer to a tz_gfx_device
 *  device_config - parameter struct containing the parameters of a device.
 *                  default parameters will be used if this is NULL.
 */
+#define TZ_GFX_CREATE_DEVICE(name) void name(tz_gfx_device* device, tz_gfx_device_params* device_config)
+typedef TZ_GFX_CREATE_DEVICE(tz_create_device_f);
 tz_gfx_device* tz_create_device(tz_gfx_device_params* device_config);
-void tz_delete_device(tz_gfx_device* device);
 
-tz_shader tz_create_shader(tz_gfx_device* device, const tz_shader_params* shader_create_info);
-void tz_delete_shader(tz_gfx_device* device, tz_shader shader);
+#define TZ_GFX_DELETE_DEVICE(name) void name(tz_gfx_device* device)
+typedef TZ_GFX_DELETE_DEVICE(tz_delete_device_f);
+TZ_GFX_DELETE_DEVICE(tz_delete_device);
 
-tz_buffer tz_create_buffer(tz_gfx_device* device, const tz_buffer_params* buffer_create_info);
-void tz_delete_buffer(tz_gfx_device* device, tz_buffer buffer);
+#define TZ_GFX_CREATE_SHADER(name) tz_shader name(tz_gfx_device* device, const tz_shader_params* shader_create_info)
+typedef TZ_GFX_CREATE_SHADER(tz_create_shader_f);
+TZ_GFX_CREATE_SHADER(tz_create_shader);
 
-tz_vertex_format tz_create_vertex_format(tz_gfx_device* device, const tz_vertex_format_params* vertex_format_info);
-void tz_delete_vertex_format(tz_gfx_device* device, tz_vertex_format format);
+#define TZ_GFX_DELETE_SHADER(name) void name(tz_gfx_device* device, tz_shader shader)
+typedef TZ_GFX_DELETE_SHADER(tz_delete_shader_f);
+TZ_GFX_DELETE_SHADER(tz_delete_shader);
 
+#define TZ_GFX_CREATE_BUFFER(name) tz_buffer name(tz_gfx_device* device, const tz_buffer_params* buffer_create_info)
+typedef TZ_GFX_CREATE_BUFFER(tz_create_buffer_f);
+TZ_GFX_CREATE_BUFFER(tz_create_buffer);
+
+#define TZ_GFX_DELETE_BUFFER(name) void name(tz_gfx_device* device, tz_buffer buffer)
+typedef TZ_GFX_DELETE_BUFFER(tz_delete_buffer_f);
+TZ_GFX_DELETE_BUFFER(tz_delete_buffer);
+
+#define TZ_GFX_CREATE_BUFFER_FORMAT(name) tz_buffer_format name(tz_gfx_device* device, const tz_buffer_format_params* buffer_format_info)
+typedef TZ_GFX_CREATE_BUFFER_FORMAT(tz_create_buffer_format_f);
+TZ_GFX_CREATE_BUFFER_FORMAT(tz_create_buffer_format);
+
+#define TZ_GFX_DELETE_BUFFER_FORMAT(name) void name(tz_gfx_device* device, tz_buffer_format format)
+typedef TZ_GFX_DELETE_BUFFER_FORMAT(tz_delete_buffer_format_f);
+TZ_GFX_DELETE_BUFFER_FORMAT(tz_delete_buffer_format);
+
+#define TZ_GFX_CREATE_PIPELINE(name) tz_pipeline name(tz_gfx_device* device, const tz_pipeline_params* pipeline_create_info)
+typedef TZ_GFX_CREATE_PIPELINE(tz_create_pipeline_f);
+TZ_GFX_CREATE_PIPELINE(tz_create_pipeline);
+
+#define TZ_GFX_DELETE_PIPELINE(name) void name(tz_gfx_device* device, tz_pipeline pipeline)
+typedef TZ_GFX_DELETE_PIPELINE(tz_delete_pipeline_f);
+TZ_GFX_DELETE_PIPELINE(tz_delete_pipeline);
+
+#define TZ_GFX_EXECUTE_DRAW_CALL(name) void name(tz_gfx_device* device, tz_pipeline pipeline_id, const tz_draw_resources* resources, const tz_draw_call_params* draw_call_params)
+typedef TZ_GFX_EXECUTE_DRAW_CALL(tz_execute_draw_call_f);
+TZ_GFX_EXECUTE_DRAW_CALL(tz_execute_draw_call);
 
 #endif 

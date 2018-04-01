@@ -1,6 +1,7 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.10)
 
 set(APP_NAME graphics_test)
+project(${APP_NAME} C)
 
 set(SOURCES src/main.c)
 
@@ -40,7 +41,8 @@ set(LIB_NAME engine)
 add_library(${LIB_NAME} STATIC
                         lib/engine/tz_core.c
                         lib/engine/tz_graphics_backend.c)
-set_property(TARGET ${LIB_NAME} PROPERTY C_STANDARD 99)
+set_property(TARGET ${LIB_NAME} PROPERTY C_STANDARD 90)
+set_property(TARGET ${LIB_NAME} PROPERTY C_STANDARD_REQUIRED ON)
 
 ## tests
 enable_testing()
@@ -49,6 +51,7 @@ add_subdirectory(test)
 ##
 
 add_executable(${APP_NAME} ${SOURCES})
-set_property(TARGET ${APP_NAME} PROPERTY C_STANDARD 99)
+set_property(TARGET ${APP_NAME} PROPERTY C_STANDARD 90)
+set_property(TARGET ${APP_NAME} PROPERTY C_STANDARD_REQUIRED ON)
 
 target_link_libraries(${APP_NAME} ${OPENGL_LIBRARIES} glfw glad header_only_impls engine)

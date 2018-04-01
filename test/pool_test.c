@@ -1,5 +1,5 @@
-#include <engine/graphics_backend.h>
-#include <engine/error.h>
+#include <engine/tz_core.h>
+#include <engine/tz_error.h>
 
 int main()
 {

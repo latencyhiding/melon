@@ -82,7 +82,8 @@ int main()
   const char* fragment_source = load_text_file(tz_default_cb_allocator(), "../assets/shaders/passthrough.frag");
   TZ_ASSERT(fragment_source);
 
-  tz_shader_params shader_params = {
+  tz_shader_params shader_params = tz_gen_shader_params();
+  shader_params = (tz_shader_params) {
     .vertex_shader = {
       .name = "passthrough.vert",
       .source = vertex_source,
