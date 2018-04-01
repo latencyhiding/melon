@@ -403,7 +403,6 @@ tz_gfx_device* tz_create_device(tz_gfx_device_params* device_config)
 
 TZ_GFX_DELETE_DEVICE(tz_delete_device)
 {
-  // TEMPORARY, this function should dispatch dynamically to whatever api is selected
   device->api.delete_device(device);
 
   tz_delete_pool(&(device->shader_pool));
@@ -414,7 +413,6 @@ TZ_GFX_DELETE_DEVICE(tz_delete_device)
   TZ_FREE(device->allocator, device);
 }
 
-// TEMPORARY, this function should dispatch dynamically to whatever api is selected
 TZ_GFX_CREATE_SHADER(tz_create_shader)
 {
   return device->api.create_shader(device, shader_create_info);
