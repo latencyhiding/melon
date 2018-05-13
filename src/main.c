@@ -101,6 +101,27 @@ int main()
   free(vertex_source);
   free(fragment_source);
 
+  tz_pipeline_params pipeline_params = tz_gen_pipeline_params();
+  pipeline_params = (tz_pipeline_params) {
+    .buffer_attachment_formats = {
+      [0] = {
+        .attribs = {
+          [0] = {
+            .name = "position",
+            .offset = 0,
+            .type = TZ_FORMAT_FLOAT,
+            .size = sizeof(float) * 2,
+            .divisor = 0
+          }
+        },
+        .num_attribs = 1
+      }
+    },
+    .num_buffer_attachments = 1
+  };
+
+  tz_pipeline pipeline = tz_create_pipeline(device, &pipeline_params);
+
   while (!glfwWindowShouldClose(window))
   {
     glfwPollEvents();
@@ -108,8 +129,9 @@ int main()
 
     glfwSwapBuffers(window);
   }
-  
+
   tz_delete_shader(device, shader_program);
+  tz_delete_pipeline(device, pipeline);
   tz_delete_device(device);
 
   return 0;

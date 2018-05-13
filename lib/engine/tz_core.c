@@ -84,7 +84,7 @@ void tz_create_pool(tz_pool* pool, size_t capacity, const tz_cb_allocator* alloc
   pool->num_free_indices = capacity;
 
   for (tz_pool_index i = 0; i < capacity; i++)
-    pool->free_indices[i] = i;
+    pool->free_indices[i] = capacity - 1 - i;
   for (tz_pool_generation i = 0; i < capacity; i++)
     pool->generations[i] = 0;
 }
