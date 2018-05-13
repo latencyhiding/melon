@@ -101,6 +101,21 @@ int main()
   free(vertex_source);
   free(fragment_source);
 
+  float vertices[] = {
+    -0.5f, -0.5f, 0.0f,
+     0.5f, -0.5f, 0.0f,
+     0.0f,  0.5f, 0.0f
+  };
+
+  tz_buffer_params buffer_params = tz_gen_buffer_params();
+  buffer_params = (tz_buffer_params) {
+    .data = vertices,
+    .size = sizeof(vertices),
+    .usage = TZ_STATIC_BUFFER
+  };
+
+  tz_buffer vertex_buffer = tz_create_buffer(device, &buffer_params);
+
   tz_pipeline_params pipeline_params = tz_gen_pipeline_params();
   pipeline_params = (tz_pipeline_params) {
     .buffer_attachment_formats = {
@@ -110,22 +125,40 @@ int main()
             .name = "position",
             .offset = 0,
             .type = TZ_FORMAT_FLOAT,
-            .size = sizeof(float) * 2,
+            .size = 3,
             .divisor = 0
           }
         },
         .num_attribs = 1
       }
     },
-    .num_buffer_attachments = 1
+      .num_buffer_attachments = 1
   };
 
   tz_pipeline pipeline = tz_create_pipeline(device, &pipeline_params);
+
+  tz_draw_resources resources = tz_gen_draw_resources();
+  resources = (tz_draw_resources) {
+    .buffers = {
+      [0] = vertex_buffer
+    },
+    .num_buffers = 1
+  };
+
+  tz_draw_call_params draw_call_params = tz_gen_draw_call_params();
+  draw_call_params = (tz_draw_call_params) {
+    .draw_type = TZ_TRIANGLES,
+    .instances = 1,
+    .base_vertex = 0,
+    .num_vertices = 3
+  };
 
   while (!glfwWindowShouldClose(window))
   {
     glfwPollEvents();
     glClearColor(0, 0, 0, 0);
+
+    tz_execute_draw_call(device, pipeline, &resources, &draw_call_params);
 
     glfwSwapBuffers(window);
   }

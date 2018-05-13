@@ -37,7 +37,6 @@ TZ_ID(tz_buffer);
 TZ_ID(tz_uniform_block);
 TZ_ID(tz_texture);
 TZ_ID(tz_shader);
-TZ_ID(tz_resource_package);
 TZ_ID(tz_pipeline);
 
 // Basic vertex data types

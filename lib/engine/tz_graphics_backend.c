@@ -34,6 +34,11 @@ struct tz_gfx_device
   tz_gfx_device_api api;
 };
 
+static size_t tz_vertex_data_type_size(tz_vertex_data_type type)
+{
+
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // OPENGL
 ////////////////////////////////////////////////////////////////////////////////
@@ -140,7 +145,7 @@ TZ_GFX_CREATE_DEVICE(tz_create_device_gl)
   tz_gfx_device_gl* device_gl = (tz_gfx_device_gl*)TZ_ALLOC((*(device_config->allocator)), total_size, DEVICE_ALIGN);
   device_gl->shader_programs = (GLuint*)align_forward(device_gl + 1, DEVICE_ALIGN);
   device_gl->buffers = (GLuint*)align_forward(device_gl->shader_programs + sizeof(GLuint) * device_config->resource_count.max_shaders, DEVICE_ALIGN);
-  device_gl->pipelines = (tz_pipeline_params*)align_forward(device_gl->buffers + sizeof(GLuint) * device_config->resource_count.max_buffers, DEVICE_ALIGN);
+  device_gl->pipelines = (tz_pipeline_gl*)align_forward(device_gl->buffers + sizeof(GLuint) * device_config->resource_count.max_buffers, DEVICE_ALIGN);
   device_gl->dummy_vao = 0;
 
   device->backend_data = device_gl;
@@ -370,9 +375,9 @@ static void gl_set_attrib_pointers(GLuint vao, GLuint buffer, const tz_buffer_fo
   for (size_t attrib_index = 0; attrib_index < buffer_format->num_attribs; attrib_index++)
   {
     tz_vertex_attrib_gl* attrib = &buffer_format->attribs[attrib_index];
-    glEnableVertexArrayAttrib(vao, attrib->location);
     glVertexAttribPointer(attrib->location, attrib->size, attrib->data_type, false, buffer_format->stride, attrib->offset);
     glVertexAttribDivisor(attrib->location, attrib->divisor);
+    glEnableVertexAttribArray(attrib->location);
   }
 
   glBindBuffer(GL_ARRAY_BUFFER, 0);

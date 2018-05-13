@@ -5,7 +5,9 @@
     "\\assets\\shaders",
     "\\lib",
     "\\lib\\engine",
-    "\\src"
+    "\\src",
+    "\\test"
   ],
+  "SelectedNode": "\\CMakeLists.txt",
   "PreviewInSolutionExplorer": false
 }
