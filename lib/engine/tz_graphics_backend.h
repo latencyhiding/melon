@@ -73,6 +73,14 @@ typedef enum
   TZ_STREAM_BUFFER
 } tz_buffer_usage;
 
+typedef enum
+{
+  TZ_TRIANGLES,
+  TZ_TRIANGLE_STRIP,
+  TZ_LINES,
+  TZ_POINTS
+} tz_draw_type;
+
 /* tz_buffer - Struct defining parameters for buffer creation
 */
 typedef struct
@@ -81,7 +89,7 @@ typedef struct
   size_t size;
   tz_buffer_usage usage;
 } tz_buffer_params;
-inline static tz_buffer_params tz_gen_buffer_params() { return (tz_buffer_params) { 0, 0, TZ_STATIC_BUFFER }; }
+tz_buffer_params tz_gen_buffer_params() { return (tz_buffer_params) { 0 }; }
 
 /* tz_vertex_attrib - Struct defining vertex attributes 
  *
@@ -96,30 +104,17 @@ inline static tz_buffer_params tz_gen_buffer_params() { return (tz_buffer_params
  */
 typedef struct
 {
+  bool _initialized;
+
   const char* name;
+  int location;
+  size_t buffer_binding;
   size_t offset;
   tz_vertex_data_type type;
   int size;
   int divisor;
 } tz_vertex_attrib_params;
-inline static tz_vertex_attrib_params tz_gen_vertex_attrib_params() { return (tz_vertex_attrib_params) { 0 }; }
-
-/* tz_buffer_format - Struct defining the format of a buffer 
- *
- * stride - number of bytes between attributes of one vertex to the next, aka the
- *          size of the vertex. This is optional, fill in only if you have a custom stride
- *          ie a particular alignment.
- * attribs - array containing vertex attributes
- * num_attribs - number of attributes in a vertex, maximum TZ_MAX_ATTRIBUTES
- */
-typedef struct
-{
-  size_t stride;
-
-  tz_vertex_attrib_params attribs[TZ_MAX_ATTRIBUTES];
-  size_t num_attribs;
-} tz_buffer_format_params;
-inline static tz_buffer_format_params tz_gen_buffer_format_params() { return (tz_buffer_format_params) { 0 }; }
+tz_vertex_attrib_params tz_gen_vertex_attrib_params() { return (tz_vertex_attrib_params) { 0 }; }
 
 typedef struct
 {
@@ -127,7 +122,7 @@ typedef struct
   const char* source;
   size_t size;
 } tz_shader_stage_params;
-inline static tz_shader_stage_params tz_gen_shader_stage_params() { return (tz_shader_stage_params) { 0 }; }
+tz_shader_stage_params tz_gen_shader_stage_params() { return (tz_shader_stage_params) { 0 }; }
 
 /* tz_shader - Struct defining a shader
 */
@@ -136,34 +131,25 @@ typedef struct
   tz_shader_stage_params vertex_shader;
   tz_shader_stage_params fragment_shader;
 } tz_shader_params;
-inline static tz_shader_params tz_gen_shader_params() { return (tz_shader_params) { 0 }; }
+tz_shader_params tz_gen_shader_params() { return (tz_shader_params) { 0 }; }
 
 typedef struct
 {
-  tz_buffer_format_params buffer_attachment_formats[TZ_MAX_BUFFER_ATTACHMENTS];
-  size_t num_buffer_attachments;
+  tz_vertex_attrib_params vertex_attribs[TZ_MAX_ATTRIBUTES];
+  size_t stride;
 
   tz_shader shader_program;
 } tz_pipeline_params;
-inline static tz_pipeline_params tz_gen_pipeline_params() { return (tz_pipeline_params) { { 0 }, 0, tz_pool_gen_invalid_id() }; }
+tz_pipeline_params tz_gen_pipeline_params() { return (tz_pipeline_params) { 0 }; }
 
 typedef struct
 {
   tz_buffer buffers[TZ_MAX_BUFFER_ATTACHMENTS];
-  size_t num_buffers;
 
   tz_buffer index_buffer;
   tz_vertex_data_type index_type;
 } tz_draw_resources;
-inline static tz_draw_resources tz_gen_draw_resources() { return (tz_draw_resources) { { 0 }, 0, { tz_pool_gen_invalid_id() } }; }
-
-typedef enum
-{
-  TZ_TRIANGLES,
-  TZ_TRIANGLE_STRIP,
-  TZ_LINES,
-  TZ_POINTS
-} tz_draw_type;
+tz_draw_resources tz_gen_draw_resources() { return (tz_draw_resources) { 0 }; }
 
 typedef struct
 {
@@ -172,7 +158,6 @@ typedef struct
   size_t base_vertex;
   size_t num_vertices;
 } tz_draw_call_params;
-inline static tz_draw_call_params tz_gen_draw_call_params() { return (tz_draw_call_params) { 0 }; }
 
 /* tz_gfx_device_config - Contains a description/settings for a gfx device
  */
@@ -193,7 +178,6 @@ typedef struct
     OPENGL
   } graphics_api;
 } tz_gfx_device_params;
-inline static tz_gfx_device_params tz_gen_device_params() { return (tz_gfx_device_params) { 0 }; }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Operation Types

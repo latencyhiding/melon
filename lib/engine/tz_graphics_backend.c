@@ -34,6 +34,7 @@ struct tz_gfx_device
   tz_gfx_device_api api;
 };
 
+// TODO
 static size_t tz_vertex_data_type_size(tz_vertex_data_type type)
 {
 
@@ -48,6 +49,7 @@ static size_t tz_vertex_data_type_size(tz_vertex_data_type type)
 typedef struct
 {
   int location;
+  size_t buffer_binding;
   size_t offset;
   GLenum data_type;
   int size;
@@ -56,17 +58,10 @@ typedef struct
 
 typedef struct
 {
-  size_t stride;
-
+  tz_shader shader_program;
   tz_vertex_attrib_gl attribs[TZ_MAX_ATTRIBUTES];
   size_t num_attribs;
-} tz_buffer_format_gl;
-
-typedef struct
-{
-  tz_shader shader_program;
-  tz_buffer_format_gl buffer_attachment_formats[TZ_MAX_BUFFER_ATTACHMENTS];
-  size_t num_buffer_attachments;
+  size_t stride;
 } tz_pipeline_gl;
 
 typedef struct
@@ -200,8 +195,8 @@ static GLuint compile_shader(tz_gfx_device* device, GLenum type, const tz_shader
 TZ_GFX_CREATE_SHADER(tz_create_shader_gl)
 {
   tz_gfx_device_gl* device_gl = (tz_gfx_device_gl*)device->backend_data;
-  tz_shader shader_id = { tz_pool_gen_invalid_id() };
-
+  tz_shader shader_id = tz_shader_id_init_invalid();
+  
   GLuint vertex_shader = compile_shader(device, GL_VERTEX_SHADER, &shader_create_info->vertex_shader);
   GLuint fragment_shader = compile_shader(device, GL_FRAGMENT_SHADER, &shader_create_info->fragment_shader);
 
@@ -246,7 +241,7 @@ TZ_GFX_CREATE_SHADER(tz_create_shader_gl)
 
   TZ_LOG("Shader successfully compiled and linked using %s and %s\n", shader_create_info->vertex_shader.name, shader_create_info->fragment_shader.name);
 
-  shader_id.id = tz_pool_create_id(&device->shader_pool);
+  shader_id = tz_shader_id_init(&device->shader_pool);
 
   if (!tz_pool_id_is_valid(&device->shader_pool, shader_id.id))
     return shader_id;
@@ -258,7 +253,7 @@ TZ_GFX_CREATE_SHADER(tz_create_shader_gl)
 
 TZ_GFX_DELETE_SHADER(tz_delete_shader_gl)
 {
-  if (!tz_pool_delete_id(&device->shader_pool, shader.id))
+  if (!tz_shader_id_delete(&device->shader_pool, shader))
   {
     TZ_LOG("Shader deletion error: invalid ID.\n");
     return;
@@ -287,7 +282,7 @@ TZ_GFX_CREATE_BUFFER(tz_create_buffer_gl)
     return buffer_id;
   }
 
-  buffer_id.id = tz_pool_create_id(&device->buffer_pool);
+  buffer_id = tz_buffer_id_init(&device->buffer_pool);
 
   if (!tz_pool_id_is_valid(&device->buffer_pool, buffer_id.id))
   {
@@ -304,7 +299,7 @@ TZ_GFX_CREATE_BUFFER(tz_create_buffer_gl)
 
 TZ_GFX_DELETE_BUFFER(tz_delete_buffer_gl)
 {
-  if (!tz_pool_delete_id(&device->buffer_pool, buffer.id))
+  if (!tz_buffer_id_delete(&device->buffer_pool, buffer))
   {
     TZ_LOG("Buffer deletion error: invalid ID.\n");
     return;
@@ -317,45 +312,64 @@ TZ_GFX_DELETE_BUFFER(tz_delete_buffer_gl)
 TZ_GFX_CREATE_PIPELINE(tz_create_pipeline_gl)
 {
   tz_gfx_device_gl* device_gl = (tz_gfx_device_gl*)device->backend_data;
-  tz_pipeline pipeline_id = { tz_pool_create_id(&device->pipeline_pool) };
+  tz_pipeline pipeline_id = tz_pipeline_id_init(&device->pipeline_pool);
 
   TZ_ASSERT(tz_pool_id_is_valid(&device->shader_pool, pipeline_create_info->shader_program.id), "Pipeline creation error: shader program ID invalid.");
 
   tz_pipeline_gl new_pipeline;
   new_pipeline.shader_program = pipeline_create_info->shader_program;
-  new_pipeline.num_buffer_attachments = pipeline_create_info->num_buffer_attachments;
+  new_pipeline.num_attribs = 0;
 
   //TODO: Pipeline validation, dummy draw call
   GLuint gl_program = device_gl->shader_programs[new_pipeline.shader_program.id.index];
-  for (size_t buffer_index = 0; buffer_index < pipeline_create_info->num_buffer_attachments; buffer_index++)
+
+  // TODO: pack buffer bindings
+  // Keep a running tally of how many attributes are in each buffer. Easy because
+  // TZ_MAX_BUFFER_ATTACHMENTS is finite.
+  // 
+  // Store an array of metadata into the new pipeline, containing the buffer binding index
+  // and the number of attributes for that binding, and the offset into the attribute array
+  // 
+  // When storing all the attributes, pack the attributes according to the metadata
+  for (size_t attrib_index = 0; attrib_index < TZ_MAX_ATTRIBUTES; attrib_index++)
   {
-    tz_buffer_format_params* format_params = pipeline_create_info->buffer_attachment_formats + buffer_index;
-    tz_buffer_format_gl* new_buffer_format = new_pipeline.buffer_attachment_formats + buffer_index;
 
-    new_buffer_format->num_attribs = format_params->num_attribs;
-    
-    size_t packed_stride = 0;
-    for (size_t attrib_index = 0; attrib_index < new_buffer_format->num_attribs; attrib_index++)
+  }
+
+  size_t packed_stride = 0;
+  for (size_t attrib_index = 0, gl_attrib_index = 0; attrib_index < TZ_MAX_ATTRIBUTES && gl_attrib_index < TZ_MAX_ATTRIBUTES; attrib_index++, gl_attrib_index++)
+  {
+    tz_vertex_attrib_params* attrib_params = pipeline_create_info->vertex_attribs + attrib_index;
+    if (!attrib_params->_initialized)
+      break;
+
+    if (attrib_params->buffer_binding > TZ_MAX_BUFFER_ATTACHMENTS)
     {
-      tz_vertex_attrib_params* attrib_params = format_params->attribs + attrib_index;
-
-      tz_vertex_attrib_gl new_attrib;
-      new_attrib.data_type = gl_buffer_binding(attrib_params->type);
-      new_attrib.divisor = attrib_params->divisor;
-      new_attrib.offset = attrib_params->offset;
-      new_attrib.size = attrib_params->size;
-      new_attrib.location = glGetAttribLocation(gl_program, attrib_params->name);
-
-      new_buffer_format->attribs[attrib_index] = new_attrib;
-
-      packed_stride += new_attrib.size;
+      gl_attrib_index--;
+      continue;
     }
 
-    if (format_params->stride == 0)
-      new_buffer_format->stride = packed_stride;
+    tz_vertex_attrib_gl new_attrib;
+    new_attrib.data_type = gl_buffer_binding(attrib_params->type);
+    new_attrib.divisor = attrib_params->divisor;
+    new_attrib.offset = attrib_params->offset;
+    new_attrib.size = attrib_params->size;
+    new_attrib.buffer_binding = attrib_params->buffer_binding;
+
+    if (attrib_params->name)
+      new_attrib.location = glGetAttribLocation(gl_program, attrib_params->name);
     else
-      new_buffer_format->stride = format_params->stride;
+      new_attrib.location = attrib_params->location;
+
+    new_pipeline.attribs[gl_attrib_index] = new_attrib;
+
+    packed_stride += new_attrib.size;
   }
+
+  if (pipeline_create_info->stride == 0)
+    new_pipeline.stride = packed_stride;
+  else
+    new_pipeline.stride = pipeline_create_info->stride;
 
   device_gl->pipelines[pipeline_id.id.index] = new_pipeline;
 
@@ -364,14 +378,12 @@ TZ_GFX_CREATE_PIPELINE(tz_create_pipeline_gl)
 
 TZ_GFX_DELETE_PIPELINE(tz_delete_pipeline_gl)
 {
-  if (!tz_pool_delete_id(&device->pipeline_pool, pipeline.id))
+  if (!tz_pipeline_id_delete(&device->pipeline_pool, pipeline))
     TZ_LOG("Pipeline deletion error: invalid ID.\n");
 }
 
-static void gl_set_attrib_pointers(GLuint vao, GLuint buffer, const tz_buffer_format_gl* buffer_format)
+static void gl_set_attrib_pointers(GLuint vao, const tz_pipeline_gl* pipeline_gl)
 {
-  glBindBuffer(GL_ARRAY_BUFFER, buffer);
-
   for (size_t attrib_index = 0; attrib_index < buffer_format->num_attribs; attrib_index++)
   {
     tz_vertex_attrib_gl* attrib = &buffer_format->attribs[attrib_index];
@@ -379,8 +391,6 @@ static void gl_set_attrib_pointers(GLuint vao, GLuint buffer, const tz_buffer_fo
     glVertexAttribDivisor(attrib->location, attrib->divisor);
     glEnableVertexAttribArray(attrib->location);
   }
-
-  glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 static GLenum gl_draw_type(tz_draw_type type)
@@ -406,12 +416,6 @@ TZ_GFX_EXECUTE_DRAW_CALL(tz_execute_draw_call_gl)
 
   TZ_ASSERT(tz_pool_id_is_valid(&device->pipeline_pool, pipeline_id.id), "Pipeline creation error: pipeline ID invalid.");
   tz_pipeline_gl* pipeline = &device_gl->pipelines[pipeline_id.id.index];
-
-  // TEMP: invariant, number of buffer attachments should equal the number of
-  // buffer formats in the pipeline. Need some better way to enforce this, like
-  // initializing the resource set with a function that requires a pipeline object
-  // to check the resources
-  TZ_ASSERT(pipeline->num_buffer_attachments == resources->num_buffers, "Resources and pipeline don't match");
 
   TZ_ASSERT(tz_pool_id_is_valid(&device->shader_pool, pipeline->shader_program.id), "Pipeline creation error: shader program ID invalid.");
   GLuint shader_program = device_gl->shader_programs[pipeline->shader_program.id.index];

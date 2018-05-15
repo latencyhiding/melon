@@ -116,41 +116,32 @@ int main()
 
   tz_buffer vertex_buffer = tz_create_buffer(device, &buffer_params);
 
-  tz_pipeline_params pipeline_params = tz_gen_pipeline_params();
-  pipeline_params = (tz_pipeline_params) {
-    .buffer_attachment_formats = {
+  tz_pipeline_params pipeline_params = (tz_pipeline_params) {
+    .vertex_attribs = {
       [0] = {
-        .attribs = {
-          [0] = {
-            .name = "position",
-            .offset = 0,
-            .type = TZ_FORMAT_FLOAT,
-            .size = 3,
-            .divisor = 0
-          }
-        },
-        .num_attribs = 1
+        .name = "position",
+        .buffer_binding = 0,
+        .offset = 0,
+        .type = TZ_FORMAT_FLOAT,
+        .size = 3,
+        .divisor = 0
       }
-    },
-      .num_buffer_attachments = 1
+    }
   };
 
   tz_pipeline pipeline = tz_create_pipeline(device, &pipeline_params);
 
-  tz_draw_resources resources = tz_gen_draw_resources();
-  resources = (tz_draw_resources) {
+  tz_draw_resources resources = (tz_draw_resources) {
     .buffers = {
       [0] = vertex_buffer
-    },
-    .num_buffers = 1
+    }
   };
 
-  tz_draw_call_params draw_call_params = tz_gen_draw_call_params();
-  draw_call_params = (tz_draw_call_params) {
+  tz_draw_call_params draw_call_params = (tz_draw_call_params) {
     .draw_type = TZ_TRIANGLES,
-    .instances = 1,
-    .base_vertex = 0,
-    .num_vertices = 3
+      .instances = 1,
+      .base_vertex = 0,
+      .num_vertices = 3
   };
 
   while (!glfwWindowShouldClose(window))
