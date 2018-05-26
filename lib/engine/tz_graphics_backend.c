@@ -34,10 +34,26 @@ struct tz_gfx_device
   tz_gfx_device_api api;
 };
 
-// TODO
-static size_t tz_vertex_data_type_size(tz_vertex_data_type type)
+static size_t tz_vertex_data_type_bytes(tz_vertex_data_type type)
 {
-
+  switch (type)
+  {
+  case TZ_FORMAT_BYTE:
+  case TZ_FORMAT_UBYTE:
+    return sizeof(uint8_t);
+  case TZ_FORMAT_SHORT:
+  case TZ_FORMAT_USHORT:
+    return sizeof(uint16_t);
+  case TZ_FORMAT_INT:
+  case TZ_FORMAT_UINT:
+    return sizeof(uint32_t);
+  case TZ_FORMAT_HALF:
+    return sizeof(float) / 2;
+  case TZ_FORMAT_FLOAT:
+    return sizeof(float);
+  default:
+    return 0;
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -72,19 +88,6 @@ typedef struct
 
   GLuint dummy_vao;
 } tz_gfx_device_gl;
-
-static GLenum gl_buffer_binding(tz_buffer_binding binding)
-{
-  switch (binding)
-  {
-  case TZ_ARRAY_BUFFER:
-    return GL_ARRAY_BUFFER;
-  case TZ_ELEMENT_BUFFER:
-    return GL_ELEMENT_ARRAY_BUFFER;
-  default:
-    TZ_ASSERT("Buffer type not supported\n");
-  }
-}
 
 static GLenum gl_buffer_usage(tz_buffer_usage usage)
 {
@@ -121,12 +124,8 @@ static GLenum gl_data_format(tz_vertex_data_type type)
     return GL_HALF_FLOAT;
   case TZ_FORMAT_FLOAT:
     return GL_FLOAT;
-  case TZ_FORMAT_DOUBLE:
-    return GL_DOUBLE;
-  case TZ_FORMAT_FIXED:
-    return GL_FIXED;
   default:
-    TZ_ASSERT("Data format not supported\n");
+    TZ_ASSERT(false, "Data format not supported\n");
   }
 }
 
@@ -146,6 +145,7 @@ TZ_GFX_CREATE_DEVICE(tz_create_device_gl)
   device->backend_data = device_gl;
 
   glGenVertexArrays(1, &device_gl->dummy_vao);
+  glBindVertexArray(device_gl->dummy_vao);
 }
 
 TZ_GFX_DELETE_DEVICE(tz_delete_device_gl)
@@ -195,7 +195,7 @@ static GLuint compile_shader(tz_gfx_device* device, GLenum type, const tz_shader
 TZ_GFX_CREATE_SHADER(tz_create_shader_gl)
 {
   tz_gfx_device_gl* device_gl = (tz_gfx_device_gl*)device->backend_data;
-  tz_shader shader_id = tz_shader_id_init_invalid();
+  tz_shader shader_id = TZ_INVALID_ID(tz_shader);
   
   GLuint vertex_shader = compile_shader(device, GL_VERTEX_SHADER, &shader_create_info->vertex_shader);
   GLuint fragment_shader = compile_shader(device, GL_FRAGMENT_SHADER, &shader_create_info->fragment_shader);
@@ -316,32 +316,18 @@ TZ_GFX_CREATE_PIPELINE(tz_create_pipeline_gl)
 
   TZ_ASSERT(tz_pool_id_is_valid(&device->shader_pool, pipeline_create_info->shader_program.id), "Pipeline creation error: shader program ID invalid.");
 
-  tz_pipeline_gl new_pipeline;
+  tz_pipeline_gl new_pipeline = { 0 };
   new_pipeline.shader_program = pipeline_create_info->shader_program;
-  new_pipeline.num_attribs = 0;
 
   //TODO: Pipeline validation, dummy draw call
   GLuint gl_program = device_gl->shader_programs[new_pipeline.shader_program.id.index];
 
-  // TODO: pack buffer bindings
-  // Keep a running tally of how many attributes are in each buffer. Easy because
-  // TZ_MAX_BUFFER_ATTACHMENTS is finite.
-  // 
-  // Store an array of metadata into the new pipeline, containing the buffer binding index
-  // and the number of attributes for that binding, and the offset into the attribute array
-  // 
-  // When storing all the attributes, pack the attributes according to the metadata
-  for (size_t attrib_index = 0; attrib_index < TZ_MAX_ATTRIBUTES; attrib_index++)
-  {
-
-  }
-
   size_t packed_stride = 0;
   for (size_t attrib_index = 0, gl_attrib_index = 0; attrib_index < TZ_MAX_ATTRIBUTES && gl_attrib_index < TZ_MAX_ATTRIBUTES; attrib_index++, gl_attrib_index++)
   {
-    tz_vertex_attrib_params* attrib_params = pipeline_create_info->vertex_attribs + attrib_index;
-    if (!attrib_params->_initialized)
-      break;
+    const tz_vertex_attrib_params* attrib_params = pipeline_create_info->vertex_attribs + attrib_index;
+    if (attrib_params->type == TZ_FORMAT_INVALID)
+      continue;
 
     if (attrib_params->buffer_binding > TZ_MAX_BUFFER_ATTACHMENTS)
     {
@@ -350,7 +336,7 @@ TZ_GFX_CREATE_PIPELINE(tz_create_pipeline_gl)
     }
 
     tz_vertex_attrib_gl new_attrib;
-    new_attrib.data_type = gl_buffer_binding(attrib_params->type);
+    new_attrib.data_type = gl_data_format(attrib_params->type);
     new_attrib.divisor = attrib_params->divisor;
     new_attrib.offset = attrib_params->offset;
     new_attrib.size = attrib_params->size;
@@ -359,13 +345,14 @@ TZ_GFX_CREATE_PIPELINE(tz_create_pipeline_gl)
     if (attrib_params->name)
       new_attrib.location = glGetAttribLocation(gl_program, attrib_params->name);
     else
-      new_attrib.location = attrib_params->location;
+      new_attrib.location = attrib_index;
 
     new_pipeline.attribs[gl_attrib_index] = new_attrib;
+    new_pipeline.num_attribs++;
 
-    packed_stride += new_attrib.size;
+    packed_stride += new_attrib.size * tz_vertex_data_type_bytes(attrib_params->type);
   }
-
+  
   if (pipeline_create_info->stride == 0)
     new_pipeline.stride = packed_stride;
   else
@@ -382,15 +369,62 @@ TZ_GFX_DELETE_PIPELINE(tz_delete_pipeline_gl)
     TZ_LOG("Pipeline deletion error: invalid ID.\n");
 }
 
-static void gl_set_attrib_pointers(GLuint vao, const tz_pipeline_gl* pipeline_gl)
+static void gl_bind_pipeline(tz_gfx_device* device, const tz_draw_resources* draw_resources, const tz_pipeline pipeline_id)
 {
-  for (size_t attrib_index = 0; attrib_index < buffer_format->num_attribs; attrib_index++)
+  tz_gfx_device_gl* device_gl = (tz_gfx_device_gl*)device->backend_data;
+
+  TZ_ASSERT(tz_pipeline_id_is_valid(&device->pipeline_pool, pipeline_id), 
+            "Pipeline binding error: pipeline ID invalid.");
+  tz_pipeline_gl* pipeline_gl = &device_gl->pipelines[pipeline_id.id.index];
+
+  TZ_ASSERT(tz_shader_id_is_valid(&device->shader_pool, pipeline_gl->shader_program), 
+            "Pipeline creation error: shader program ID invalid.");
+  GLuint shader_program = device_gl->shader_programs[pipeline_gl->shader_program.id.index];
+
+  for (size_t attrib_index = 0; attrib_index < pipeline_gl->num_attribs; attrib_index++)
   {
-    tz_vertex_attrib_gl* attrib = &buffer_format->attribs[attrib_index];
-    glVertexAttribPointer(attrib->location, attrib->size, attrib->data_type, false, buffer_format->stride, attrib->offset);
+    static GLuint current_buffer = 0;
+    tz_vertex_attrib_gl* attrib = &pipeline_gl->attribs[attrib_index];
+
+    tz_buffer buffer = draw_resources->buffers[attrib->buffer_binding];
+    TZ_ASSERT(tz_buffer_id_is_valid(&device->buffer_pool, buffer), 
+              "Buffer at binding %lu was invalid", attrib->buffer_binding);
+
+    if (current_buffer != device_gl->buffers[buffer.id.index])
+    {
+      current_buffer = device_gl->buffers[buffer.id.index];
+      glBindBuffer(GL_ARRAY_BUFFER, current_buffer);
+    }
+
+    glVertexAttribPointer(attrib->location, 
+                          attrib->size, 
+                          attrib->data_type,
+                          GL_FALSE, 
+                          pipeline_gl->stride, 
+                          (GLvoid*) attrib->offset);
     glVertexAttribDivisor(attrib->location, attrib->divisor);
     glEnableVertexAttribArray(attrib->location);
   }
+
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+  glUseProgram(shader_program);
+}
+
+static void gl_clear_pipeline(tz_gfx_device* device, tz_pipeline pipeline_id)
+{
+  tz_gfx_device_gl* device_gl = (tz_gfx_device_gl*)device->backend_data;
+
+  TZ_ASSERT(tz_pipeline_id_is_valid(&device->pipeline_pool, pipeline_id), 
+            "Pipeline binding error: pipeline ID invalid.");
+  tz_pipeline_gl* pipeline_gl = &device_gl->pipelines[pipeline_id.id.index];
+
+  for (size_t attrib_index = 0; attrib_index < pipeline_gl->num_attribs; attrib_index++)
+  {
+    tz_vertex_attrib_gl* attrib = &pipeline_gl->attribs[attrib_index];
+    glDisableVertexAttribArray(attrib->location);
+  }
+
+  glUseProgram(0);
 }
 
 static GLenum gl_draw_type(tz_draw_type type)
@@ -414,33 +448,28 @@ TZ_GFX_EXECUTE_DRAW_CALL(tz_execute_draw_call_gl)
 {
   tz_gfx_device_gl* device_gl = (tz_gfx_device_gl*)device->backend_data;
 
-  TZ_ASSERT(tz_pool_id_is_valid(&device->pipeline_pool, pipeline_id.id), "Pipeline creation error: pipeline ID invalid.");
-  tz_pipeline_gl* pipeline = &device_gl->pipelines[pipeline_id.id.index];
-
-  TZ_ASSERT(tz_pool_id_is_valid(&device->shader_pool, pipeline->shader_program.id), "Pipeline creation error: shader program ID invalid.");
-  GLuint shader_program = device_gl->shader_programs[pipeline->shader_program.id.index];
-
-  // Set attribute pointers
-  for (size_t buffer_index = 0; buffer_index < pipeline->num_buffer_attachments; buffer_index++)
-  {
-    TZ_ASSERT(tz_pool_id_is_valid(&device->buffer_pool, resources->buffers[buffer_index].id), "Pipeline creation error: buffer ID invalid.");
-    GLuint buffer = device_gl->buffers[resources->buffers[buffer_index].id.index];
-
-    gl_set_attrib_pointers(device_gl->dummy_vao, buffer, pipeline->buffer_attachment_formats + buffer_index);
-  }
-
-  glUseProgram(shader_program);
+  gl_bind_pipeline(device, resources, pipeline_id);
 
   if (tz_pool_id_is_valid(&device->buffer_pool, resources->index_buffer.id))
   {
     GLuint index_buffer = device_gl->buffers[resources->index_buffer.id.index];
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer);
-    glDrawElementsInstancedBaseVertex(gl_draw_type(draw_call_params->draw_type), draw_call_params->num_vertices, gl_data_format(resources->index_type), NULL, draw_call_params->instances, draw_call_params->base_vertex);
+    glDrawElementsInstancedBaseVertex(gl_draw_type(draw_call_params->draw_type), 
+                                      draw_call_params->num_vertices, 
+                                      gl_data_format(resources->index_type), 
+                                      NULL, 
+                                      draw_call_params->instances, 
+                                      draw_call_params->base_vertex);
   }
   else
   {
-    glDrawArraysInstanced(gl_draw_type(draw_call_params->draw_type), draw_call_params->base_vertex, draw_call_params->num_vertices, draw_call_params->instances);
+    glDrawArraysInstanced(gl_draw_type(draw_call_params->draw_type), 
+                          draw_call_params->base_vertex, 
+                          draw_call_params->num_vertices, 
+                          draw_call_params->instances);
   }
+
+  gl_clear_pipeline(device, pipeline_id);
 }
 
 tz_gfx_device_api opengl_api = {

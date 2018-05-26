@@ -82,8 +82,7 @@ int main()
   const char* fragment_source = load_text_file(tz_default_cb_allocator(), "../assets/shaders/passthrough.frag");
   TZ_ASSERT(fragment_source);
 
-  tz_shader_params shader_params = tz_gen_shader_params();
-  shader_params = (tz_shader_params) {
+  tz_shader_params shader_params = (tz_shader_params) {
     .vertex_shader = {
       .name = "passthrough.vert",
       .source = vertex_source,
@@ -95,7 +94,6 @@ int main()
       .size = strlen(fragment_source)
     }
   };
-
   tz_shader shader_program = tz_create_shader(device, &shader_params);
 
   free(vertex_source);
@@ -107,13 +105,11 @@ int main()
      0.0f,  0.5f, 0.0f
   };
 
-  tz_buffer_params buffer_params = tz_gen_buffer_params();
-  buffer_params = (tz_buffer_params) {
+  tz_buffer_params buffer_params = (tz_buffer_params) {
     .data = vertices,
     .size = sizeof(vertices),
     .usage = TZ_STATIC_BUFFER
   };
-
   tz_buffer vertex_buffer = tz_create_buffer(device, &buffer_params);
 
   tz_pipeline_params pipeline_params = (tz_pipeline_params) {
@@ -126,9 +122,9 @@ int main()
         .size = 3,
         .divisor = 0
       }
-    }
+    },
+    .shader_program = shader_program
   };
-
   tz_pipeline pipeline = tz_create_pipeline(device, &pipeline_params);
 
   tz_draw_resources resources = (tz_draw_resources) {
@@ -144,10 +140,11 @@ int main()
       .num_vertices = 3
   };
 
+  glClearColor(0, 0, 0, 0);
   while (!glfwWindowShouldClose(window))
   {
     glfwPollEvents();
-    glClearColor(0, 0, 0, 0);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     tz_execute_draw_call(device, pipeline, &resources, &draw_call_params);
 

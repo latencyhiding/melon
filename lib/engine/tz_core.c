@@ -78,17 +78,15 @@ tz_cb_logger tz_logger_callback = tz_default_logger;
 void tz_create_pool(tz_pool* pool, size_t capacity, const tz_cb_allocator* allocator)
 {
   pool->allocator = *allocator;
-  pool->free_indices = (tz_pool_index*)TZ_ALLOC(pool->allocator, sizeof(tz_pool_index) * capacity, 4);
-  pool->generations = (tz_pool_generation*)TZ_ALLOC(pool->allocator, sizeof(tz_pool_generation) * capacity, 4);
+  pool->free_indices = (uint32_t*)TZ_ALLOC(pool->allocator, sizeof(uint32_t) * capacity, 4);
+  pool->generations = (uint8_t*)TZ_ALLOC(pool->allocator, sizeof(uint8_t) * capacity, 4);
   pool->capacity = capacity;
   pool->num_free_indices = capacity;
 
-  for (tz_pool_index i = 0; i < capacity; i++)
-  {
+  for (uint32_t i = 0; i < capacity; i++)
     pool->free_indices[capacity - 1 - i] = i;
-  }
 
-  for (tz_pool_generation i = 0; i < capacity; i++)
+  for (uint8_t i = 0; i < capacity; i++)
     pool->generations[i] = 0;
 }
 
@@ -102,8 +100,8 @@ tz_pool_id tz_pool_create_id(tz_pool* pool)
 {
   tz_pool_id new_id = tz_pool_gen_invalid_id();
 
-  tz_pool_index index;
-  tz_pool_generation generation;
+  uint32_t index;
+  uint8_t generation;
 
   // Pop free indices off the stack until one with a valid generation is found
   do
@@ -115,6 +113,7 @@ tz_pool_id tz_pool_create_id(tz_pool* pool)
     generation = pool->generations[index];
   } while (generation > TZ_POOL_MAX_GENERATION);
 
+  new_id._initialized = true;
   new_id.index = index;
   new_id.generation = generation;
 
@@ -123,14 +122,14 @@ tz_pool_id tz_pool_create_id(tz_pool* pool)
 
 bool tz_pool_id_is_valid(tz_pool* pool, tz_pool_id id)
 {
-  return (id.index != TZ_POOL_INVALID_INDEX)
+  return id._initialized 
     && (id.generation == pool->generations[id.index])
     && (id.index < pool->capacity);
 }
 
 tz_pool_id tz_pool_gen_invalid_id()
 {
-  return (tz_pool_id) { 0, TZ_POOL_INVALID_INDEX };
+  return (tz_pool_id) { 0 };
 }
 
 bool tz_pool_delete_id(tz_pool* pool, tz_pool_id id)

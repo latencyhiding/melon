@@ -7,6 +7,9 @@ set(SOURCES src/main.c)
 
 set(CMAKE_C_FLAGS_DEBUG "-DTZ_DEBUG")
 
+#set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin )
+#set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin )
+
 ## Third party libs
 # glad 
 

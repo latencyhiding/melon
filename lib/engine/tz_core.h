@@ -48,18 +48,18 @@ const tz_cb_allocator* tz_default_cb_allocator();
  * order.
  */
 
-typedef uint32_t tz_pool_index;
-typedef uint8_t tz_pool_generation;
 typedef struct
 {
-  tz_pool_generation generation;
-  tz_pool_index index;
+  bool _initialized : 1;
+  uint8_t generation : 7;
+  uint32_t index : 24;
+
 } tz_pool_id;
 
 typedef struct
 {
-  tz_pool_index* free_indices;
-  tz_pool_generation* generations;
+  uint32_t* free_indices;
+  uint8_t* generations;
   size_t capacity;
   size_t num_free_indices;
 
@@ -73,17 +73,14 @@ bool tz_pool_id_is_valid(tz_pool* pool, tz_pool_id id);
 tz_pool_id tz_pool_gen_invalid_id();
 bool tz_pool_delete_id(tz_pool* pool, tz_pool_id index);
 
-#define TZ_ID(name) typedef struct {tz_pool_id id; bool _initialized;} name; \
+#define TZ_ID(name) typedef union { tz_pool_id id; uint32_t data; } name; \
                     static inline name name##_id_init(tz_pool* pool) \
                     {\
-                      tz_pool_id id = tz_pool_create_id(pool);\
-                      return tz_pool_id_is_valid(pool, id) ? (name) { id, true } : (name) { tz_pool_gen_invalid_id(), false }; \
+                      return (name) { tz_pool_create_id(pool) };\
                     }\
                     static inline bool name##_id_delete(tz_pool* pool, name id) { return tz_pool_delete_id(pool, id.id); } \
-                    static inline name name##_id_init_invalid() { return (name) { tz_pool_gen_invalid_id(), false }; }
+                    static inline bool name##_id_is_valid(tz_pool* pool, name id) { return tz_pool_id_is_valid(pool, id.id); }
 #define TZ_INVALID_ID(type) (type) { tz_pool_gen_invalid_id() };
-#define TZ_POOL_INVALID_INDEX ((tz_pool_index) ~0)
-#define TZ_POOL_MAX_GENERATION ((tz_pool_generation) ~0)
-
+#define TZ_POOL_MAX_GENERATION ((uint8_t) ~0)
 
 #endif

@@ -51,18 +51,7 @@ typedef enum
   TZ_FORMAT_UINT,
   TZ_FORMAT_HALF,
   TZ_FORMAT_FLOAT,
-  TZ_FORMAT_DOUBLE,
-  TZ_FORMAT_FIXED
 } tz_vertex_data_type;
-
-/* tz_buffer_type - Enum defining types of buffers
-*/
-
-typedef enum
-{
-  TZ_ARRAY_BUFFER,
-  TZ_ELEMENT_BUFFER
-} tz_buffer_binding;
 
 /* tz_buffer_usage - Enum defining the buffer access patterns
 */
@@ -89,7 +78,7 @@ typedef struct
   size_t size;
   tz_buffer_usage usage;
 } tz_buffer_params;
-tz_buffer_params tz_gen_buffer_params() { return (tz_buffer_params) { 0 }; }
+static inline tz_buffer_params tz_gen_buffer_params() { return (tz_buffer_params) { 0 }; }
 
 /* tz_vertex_attrib - Struct defining vertex attributes 
  *
@@ -104,17 +93,14 @@ tz_buffer_params tz_gen_buffer_params() { return (tz_buffer_params) { 0 }; }
  */
 typedef struct
 {
-  bool _initialized;
-
   const char* name;
-  int location;
   size_t buffer_binding;
   size_t offset;
   tz_vertex_data_type type;
   int size;
   int divisor;
 } tz_vertex_attrib_params;
-tz_vertex_attrib_params tz_gen_vertex_attrib_params() { return (tz_vertex_attrib_params) { 0 }; }
+static inline tz_vertex_attrib_params tz_gen_vertex_attrib_params() { return (tz_vertex_attrib_params) { 0 }; }
 
 typedef struct
 {
@@ -122,7 +108,7 @@ typedef struct
   const char* source;
   size_t size;
 } tz_shader_stage_params;
-tz_shader_stage_params tz_gen_shader_stage_params() { return (tz_shader_stage_params) { 0 }; }
+static inline tz_shader_stage_params tz_gen_shader_stage_params() { return (tz_shader_stage_params) { 0 }; }
 
 /* tz_shader - Struct defining a shader
 */
@@ -131,7 +117,7 @@ typedef struct
   tz_shader_stage_params vertex_shader;
   tz_shader_stage_params fragment_shader;
 } tz_shader_params;
-tz_shader_params tz_gen_shader_params() { return (tz_shader_params) { 0 }; }
+static inline tz_shader_params tz_gen_shader_params() { return (tz_shader_params) { 0 }; }
 
 typedef struct
 {
@@ -140,7 +126,7 @@ typedef struct
 
   tz_shader shader_program;
 } tz_pipeline_params;
-tz_pipeline_params tz_gen_pipeline_params() { return (tz_pipeline_params) { 0 }; }
+static inline tz_pipeline_params tz_gen_pipeline_params() { return (tz_pipeline_params) { 0 }; }
 
 typedef struct
 {
@@ -149,7 +135,7 @@ typedef struct
   tz_buffer index_buffer;
   tz_vertex_data_type index_type;
 } tz_draw_resources;
-tz_draw_resources tz_gen_draw_resources() { return (tz_draw_resources) { 0 }; }
+static inline tz_draw_resources tz_gen_draw_resources() { return (tz_draw_resources) { 0 }; }
 
 typedef struct
 {

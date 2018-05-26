@@ -11,10 +11,5 @@ int main()
   TZ_ASSERT(pool.capacity == test_capacity, "capacity == %zu", pool.capacity);
   TZ_ASSERT(pool.num_free_indices == test_capacity);
 
-  for (size_t i = 0; i < pool.num_free_indices; i++)
-  {
-    TZ_ASSERT(pool.free_indices[i] != TZ_POOL_INVALID_INDEX, "Invalid id found");
-  }
-
   return 0;
 }
