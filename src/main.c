@@ -18,12 +18,11 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
     glfwSetWindowShouldClose(window, GL_TRUE);
 }
 
-static const char* load_text_file(const tz_cb_allocator* allocator, const char* filename)
+static const char* load_text_file(const char* filename)
 {
   FILE* f = fopen(filename, "r");
   size_t size = 0;
   char* data = NULL;
-  const tz_cb_allocator* alloc = allocator ? allocator : tz_default_cb_allocator();
 
   if (!f)
   {
@@ -35,14 +34,34 @@ static const char* load_text_file(const tz_cb_allocator* allocator, const char* 
   size = ftell(f);
   rewind(f);
  
-  data = (char*)malloc(size + 1);
+  data = (char*) malloc(size + 1);
+  memset(data, 0, size + 1);
 
   fread(data, 1, size, f);
   fclose(f);
 
-  data[size] = '\0';
-
   return data;
+}
+
+GLenum glCheckError()
+{
+  GLenum errorCode;
+  while ((errorCode = glGetError()) != GL_NO_ERROR)
+  {
+    const char* error;
+    switch (errorCode)
+    {
+    case GL_INVALID_ENUM:                  error = "INVALID_ENUM"; break;
+    case GL_INVALID_VALUE:                 error = "INVALID_VALUE"; break;
+    case GL_INVALID_OPERATION:             error = "INVALID_OPERATION"; break;
+    case GL_STACK_OVERFLOW:                error = "STACK_OVERFLOW"; break;
+    case GL_STACK_UNDERFLOW:               error = "STACK_UNDERFLOW"; break;
+    case GL_OUT_OF_MEMORY:                 error = "OUT_OF_MEMORY"; break;
+    case GL_INVALID_FRAMEBUFFER_OPERATION: error = "INVALID_FRAMEBUFFER_OPERATION"; break;
+    }
+    printf("%s\n", error);
+  }
+  return errorCode;
 }
 
 #define WIDTH 800
@@ -77,9 +96,9 @@ int main()
 
   tz_gfx_device* device = tz_create_device(NULL);
 
-  const char* vertex_source = load_text_file(tz_default_cb_allocator(), "../assets/shaders/passthrough.vert");
+  const char* vertex_source = load_text_file("../assets/shaders/passthrough.vert");
   TZ_ASSERT(vertex_source);
-  const char* fragment_source = load_text_file(tz_default_cb_allocator(), "../assets/shaders/passthrough.frag");
+  const char* fragment_source = load_text_file("../assets/shaders/passthrough.frag");
   TZ_ASSERT(fragment_source);
 
   tz_shader_params shader_params = (tz_shader_params) {
@@ -88,10 +107,10 @@ int main()
       .source = vertex_source,
       .size = strlen(vertex_source)
     },
-    .fragment_shader = {
-      .name = "passthrough.frag",
-      .source = fragment_source,
-      .size = strlen(fragment_source)
+      .fragment_shader = {
+        .name = "passthrough.frag",
+        .source = fragment_source,
+        .size = strlen(fragment_source)
     }
   };
   tz_shader shader_program = tz_create_shader(device, &shader_params);
@@ -100,15 +119,15 @@ int main()
   free(fragment_source);
 
   float vertices[] = {
-    -0.5f, -0.5f, 0.0f,
-     0.5f, -0.5f, 0.0f,
-     0.0f,  0.5f, 0.0f
+    -0.5f, -0.5f,
+     0.5f, -0.5f,
+     0.0f,  0.5f
   };
 
   tz_buffer_params buffer_params = (tz_buffer_params) {
     .data = vertices,
-    .size = sizeof(vertices),
-    .usage = TZ_STATIC_BUFFER
+      .size = sizeof(vertices),
+      .usage = TZ_STATIC_BUFFER
   };
   tz_buffer vertex_buffer = tz_create_buffer(device, &buffer_params);
 
@@ -119,25 +138,30 @@ int main()
         .buffer_binding = 0,
         .offset = 0,
         .type = TZ_FORMAT_FLOAT,
-        .size = 3,
+        .size = 2,
         .divisor = 0
       }
     },
-    .shader_program = shader_program
+      .shader_program = shader_program
   };
   tz_pipeline pipeline = tz_create_pipeline(device, &pipeline_params);
 
-  tz_draw_resources resources = (tz_draw_resources) {
-    .buffers = {
-      [0] = vertex_buffer
-    }
-  };
-
-  tz_draw_call_params draw_call_params = (tz_draw_call_params) {
+  tz_draw_call_params draw_calls = (tz_draw_call_params) {
     .draw_type = TZ_TRIANGLES,
       .instances = 1,
       .base_vertex = 0,
       .num_vertices = 3
+  };
+
+  tz_draw_group draw_group = (tz_draw_group) {
+    .pipeline = pipeline,
+    .resources = {
+      .buffers = {
+        [0] = vertex_buffer
+      }
+    },
+    .draw_calls = &draw_calls,
+    .num_draw_calls = 1
   };
 
   glClearColor(0, 0, 0, 0);
@@ -146,7 +170,8 @@ int main()
     glfwPollEvents();
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    tz_execute_draw_call(device, pipeline, &resources, &draw_call_params);
+    tz_execute_draw_groups(device, &draw_group, 1);
+    glCheckError();
 
     glfwSwapBuffers(window);
   }

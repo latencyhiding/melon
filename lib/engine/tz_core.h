@@ -83,4 +83,11 @@ bool tz_pool_delete_id(tz_pool* pool, tz_pool_id index);
 #define TZ_INVALID_ID(type) (type) { tz_pool_gen_invalid_id() };
 #define TZ_POOL_MAX_GENERATION ((uint8_t) ~0)
 
+/* Convenience macros for data sizes
+ */
+
+#define TZ_KILOBYTE(n) (1024 * n)
+#define TZ_MEGABYTE(n) (1024 * TZ_KILOBYTE(n))
+#define TZ_GIGABYTE(n) (1024 * TZ_MEGABYTE(n))
+
 #endif

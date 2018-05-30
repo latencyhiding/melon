@@ -21,9 +21,7 @@
 #define TZ_MAX_BUFFER_ATTACHMENTS 4
 #define TZ_MAX_STAGE_UNIFORM_BLOCKS 4
 #define TZ_MAX_STAGE_TEXTURE_SAMPLERS 16
-#define TZ_MAX_SHADER_RESOURCES_PER_SET 20
-#define TZ_MAX_RESOURCE_SETS_PER_PIPELINE 4
-#define TZ_MAX_ATTRIB_NAME_SIZE 256
+#define TZ_MAX_PUSH_UNIFORMS 16
 
 ////////////////////////////////////////////////////////////////////////////////
 // description types 
@@ -38,6 +36,7 @@ TZ_ID(tz_uniform_block);
 TZ_ID(tz_texture);
 TZ_ID(tz_shader);
 TZ_ID(tz_pipeline);
+TZ_ID(tz_command_list);
 
 // Basic vertex data types
 typedef enum
@@ -128,6 +127,26 @@ typedef struct
 } tz_pipeline_params;
 static inline tz_pipeline_params tz_gen_pipeline_params() { return (tz_pipeline_params) { 0 }; }
 
+typedef enum
+{
+  TZ_UNIFORM_INVALID,
+  TZ_UNIFORM_FLOAT1,
+  TZ_UNIFORM_FLOAT2,
+  TZ_UNIFORM_FLOAT3,
+  TZ_UNIFORM_FLOAT4,
+  TZ_UNIFORM_INT1,
+  TZ_UNIFORM_INT2,
+  TZ_UNIFORM_INT3,
+  TZ_UNIFORM_INT4,
+  TZ_UNIFORM_UINT1,
+  TZ_UNIFORM_UINT2,
+  TZ_UNIFORM_UINT3,
+  TZ_UNIFORM_UINT4,
+  TZ_UNIFORM_MATRIX2,
+  TZ_UNIFORM_MATRIX3,
+  TZ_UNIFORM_MATRIX4
+} tz_uniform_type;
+
 typedef struct
 {
   tz_buffer buffers[TZ_MAX_BUFFER_ATTACHMENTS];
@@ -145,6 +164,14 @@ typedef struct
   size_t num_vertices;
 } tz_draw_call_params;
 
+typedef struct
+{
+  tz_pipeline pipeline;
+  tz_draw_resources resources;
+  tz_draw_call_params* draw_calls;
+  size_t num_draw_calls;
+} tz_draw_group;
+
 /* tz_gfx_device_config - Contains a description/settings for a gfx device
  */
 typedef struct
@@ -161,7 +188,7 @@ typedef struct
 
   enum
   {
-    OPENGL
+    OPENGL3
   } graphics_api;
 } tz_gfx_device_params;
 
@@ -215,8 +242,7 @@ TZ_GFX_CREATE_PIPELINE(tz_create_pipeline);
 typedef TZ_GFX_DELETE_PIPELINE(tz_delete_pipeline_f);
 TZ_GFX_DELETE_PIPELINE(tz_delete_pipeline);
 
-#define TZ_GFX_EXECUTE_DRAW_CALL(name) void name(tz_gfx_device* device, tz_pipeline pipeline_id, const tz_draw_resources* resources, const tz_draw_call_params* draw_call_params)
-typedef TZ_GFX_EXECUTE_DRAW_CALL(tz_execute_draw_call_f);
-TZ_GFX_EXECUTE_DRAW_CALL(tz_execute_draw_call);
-
+#define TZ_GFX_EXECUTE_DRAW_GROUPS(name) void name(tz_gfx_device* device, tz_draw_group* draw_groups, size_t num_draw_groups)
+typedef TZ_GFX_EXECUTE_DRAW_GROUPS(tz_execute_draw_groups_f);
+TZ_GFX_EXECUTE_DRAW_GROUPS(tz_execute_draw_groups);
 #endif 
