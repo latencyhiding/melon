@@ -12,7 +12,7 @@ static void* tz_malloc(void* user_data, size_t size, size_t align)
   if (ptr == NULL)
     return NULL;
 
-  void** return_ptr = (void**) align_forward(((void**) ptr) + 1, align);
+  void** return_ptr = (void**) tz_align_forward(((void**) ptr) + 1, align);
   return_ptr[-1] = ptr;
 
   return (void*) return_ptr;
@@ -26,7 +26,7 @@ static void* tz_realloc(void* user_data, void* ptr, size_t size, size_t align)
   if (new_ptr == NULL)
     return NULL;
 
-  void** return_ptr = (void**) align_forward(((void**) new_ptr) + 1, align);
+  void** return_ptr = (void**) tz_align_forward(((void**) new_ptr) + 1, align);
   return_ptr[-1] = new_ptr;
 
   return (void*) return_ptr;
@@ -70,6 +70,55 @@ static void tz_default_logger(const char* message, ...)
 }
 
 tz_cb_logger tz_logger_callback = tz_default_logger;
+
+////////////////////////////////////////////////////////////////////////////////
+// Block pool implementation
+////////////////////////////////////////////////////////////////////////////////
+
+#define TZ_INVALID_BLOCK_INDEX (~0)
+
+/*
+ * Fixed size blocks are allocated out of a large preallocated arena
+ * There is a list of blocks and their positions in the arena
+ * There is a freelist that tracks the memory blocks that can be claimed
+ * 
+ * Memory allocated to the pool is accessed with a "chain id" which represents
+ * a chain of blocks that must be freed at the same time.
+ *
+ * Thread safety is managed by a semaphore, which is only blocking when the arena
+ * needs to grow, and a mutex that manages the freelist
+*/
+
+void tz_create_block_pool(tz_block_pool*         block_pool,
+                          size_t                 block_size,
+                          size_t                 num_blocks,
+                          const tz_cb_allocator* allocator)
+{
+}
+
+void tz_delete_block_pool(tz_block_pool* block_pool)
+{
+}
+
+size_t tz_block_pool_new_chain(tz_block_pool* block_pool)
+{
+}
+
+void* tz_block_pool_push_arena(tz_block_pool* block_pool,
+                               size_t         chain_id,
+                               size_t         size,
+                               size_t         align)
+{
+}
+
+void tz_block_pool_free_arena(tz_block_pool* block_pool,
+                              size_t         chain_id)
+{
+}
+
+void tz_block_pool_free_all(tz_block_pool* block_pool)
+{
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Pool implementation 
@@ -122,7 +171,7 @@ tz_pool_id tz_pool_create_id(tz_pool* pool)
 
 bool tz_pool_id_is_valid(tz_pool* pool, tz_pool_id id)
 {
-  return id._initialized 
+  return id._initialized
     && (id.generation == pool->generations[id.index])
     && (id.index < pool->capacity);
 }

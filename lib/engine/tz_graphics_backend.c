@@ -63,6 +63,32 @@ typedef struct
 } tz_draw_state;
 
 ////////////////////////////////////////////////////////////////////////////////
+// COMMAND BUFFER
+////////////////////////////////////////////////////////////////////////////////
+
+typedef struct
+{
+  tz_block* start_block;
+  tz_block* current_block;
+} tz_command_buffer;
+
+static tz_block* tz_allocate_command_block(tz_gfx_device* device)
+{
+  
+}
+
+static tz_block* tz_free_command_block(tz_gfx_device* device, tz_block* block)
+{
+
+}
+
+void tz_command_buffer_write(tz_gfx_device* device, tz_command_buffer* command_buffer,
+                             tz_draw_group* draw_groups, size_t num_draw_groups)
+{
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // OPENGL
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -143,9 +169,9 @@ TZ_GFX_CREATE_DEVICE(tz_create_device_gl3)
     + device_config->resource_count.max_pipelines * sizeof(tz_pipeline) + DEVICE_ALIGN;
 
   tz_gfx_device_gl* device_gl = (tz_gfx_device_gl*)TZ_ALLOC((*(device_config->allocator)), total_size, DEVICE_ALIGN);
-  device_gl->shader_programs = (GLuint*)align_forward(device_gl + 1, DEVICE_ALIGN);
-  device_gl->buffers = (GLuint*)align_forward(device_gl->shader_programs + sizeof(GLuint) * device_config->resource_count.max_shaders, DEVICE_ALIGN);
-  device_gl->pipelines = (tz_pipeline_gl*)align_forward(device_gl->buffers + sizeof(GLuint) * device_config->resource_count.max_buffers, DEVICE_ALIGN);
+  device_gl->shader_programs = (GLuint*)tz_align_forward(device_gl + 1, DEVICE_ALIGN);
+  device_gl->buffers = (GLuint*)tz_align_forward(device_gl->shader_programs + sizeof(GLuint) * device_config->resource_count.max_shaders, DEVICE_ALIGN);
+  device_gl->pipelines = (tz_pipeline_gl*)tz_align_forward(device_gl->buffers + sizeof(GLuint) * device_config->resource_count.max_buffers, DEVICE_ALIGN);
   device_gl->dummy_vao = 0;
 
   device->backend_data = device_gl;

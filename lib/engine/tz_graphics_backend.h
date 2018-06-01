@@ -21,7 +21,6 @@
 #define TZ_MAX_BUFFER_ATTACHMENTS 4
 #define TZ_MAX_STAGE_UNIFORM_BLOCKS 4
 #define TZ_MAX_STAGE_TEXTURE_SAMPLERS 16
-#define TZ_MAX_PUSH_UNIFORMS 16
 
 ////////////////////////////////////////////////////////////////////////////////
 // description types 

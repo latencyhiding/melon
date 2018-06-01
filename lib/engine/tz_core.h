@@ -7,8 +7,10 @@
 #include <stdarg.h>
 #include <stdbool.h>
 
+#include <tinycthread.h>
+
 // Utility for aligning pointers
-inline static void* align_forward(void* ptr, size_t align)
+inline static void* tz_align_forward(void* ptr, size_t align)
 {
   if (align == 0)
     return ptr;
@@ -44,9 +46,68 @@ extern tz_cb_logger tz_logger_callback;
 // Returns the default callbacks for our backend
 const tz_cb_allocator* tz_default_cb_allocator();
 
-/* tz_pool - a pool with a stack-like behavior. Indices are allocated in a FIFO
- * order.
- */
+////////////////////////////////////////////////////////////////////////////////
+// tz_block_pool - a thread safe, block-based memory pool
+////////////////////////////////////////////////////////////////////////////////
+
+typedef struct tz_arena
+{
+  uint8_t* start;
+  size_t offset;
+  size_t size;
+
+  tz_arena* next;
+} tz_arena;
+
+#define TZ_ALLOC_ARENA(alloc, size, align) ((tz_arena) { TZ_ALLOC(alloc, size, align), 0, size, NULL})
+#define TZ_FREE_ARENA(alloc, arena) (TZ_FREE(alloc, arena.start))
+
+typedef struct
+{
+  uint8_t* start;
+  size_t used;
+  tz_block* next;
+
+  // If freed, this will store the next block in the freelist
+  tz_block* freelist_next;
+} tz_block;
+
+typedef struct
+{
+  tz_arena memory;
+
+  tz_block* freelist_head;
+  tz_block* freelist_tail;
+
+  size_t block_size;
+  size_t num_blocks;
+
+  tz_cb_allocator allocator;
+
+  cnd_t growth_cnd;
+  mtx_t growth_mtx;
+
+  mtx_t freelist_mtx;
+} tz_block_pool;
+
+void tz_create_block_pool(tz_block_pool*         block_pool,
+                          size_t                 block_size,
+                          size_t                 num_blocks,
+                          const tz_cb_allocator* allocator);
+void tz_delete_block_pool(tz_block_pool* block_pool);
+size_t tz_block_pool_new_chain(tz_block_pool* block_pool);
+void* tz_block_pool_push_chain(tz_block_pool* block_pool,
+                               size_t         chain_id,
+                               size_t         size,
+                               size_t         align);
+void tz_block_pool_free_chain(tz_block_pool* block_pool,
+                              size_t         chain_id);
+void tz_block_pool_free_all(tz_block_pool* block_pool);
+
+////////////////////////////////////////////////////////////////////////////////
+// tz_pool - an index pool with a stack-like behavior. Indices are allocated in 
+// a FIFO order.
+////////////////////////////////////////////////////////////////////////////////
 
 typedef struct
 {

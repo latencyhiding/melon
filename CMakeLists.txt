@@ -34,6 +34,7 @@ find_package(OpenGL REQUIRED)
 
 # TinyCThread
 add_subdirectory(thirdparty/tinycthread)
+include_directories(thirdparty/tinycthread/source)
 
 # header only stuff
 add_library(header_only_impls STATIC 
