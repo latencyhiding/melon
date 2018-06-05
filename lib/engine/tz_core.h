@@ -56,20 +56,20 @@ typedef struct tz_arena
   size_t offset;
   size_t size;
 
-  tz_arena* next;
+  struct tz_arena* next;
 } tz_arena;
 
 #define TZ_ALLOC_ARENA(alloc, size, align) ((tz_arena) { TZ_ALLOC(alloc, size, align), 0, size, NULL})
 #define TZ_FREE_ARENA(alloc, arena) (TZ_FREE(alloc, arena.start))
 
-typedef struct
+typedef struct tz_block
 {
   uint8_t* start;
   size_t used;
-  tz_block* next;
+  struct tz_block* next;
 
   // If freed, this will store the next block in the freelist
-  tz_block* freelist_next;
+  struct tz_block* freelist_next;
 } tz_block;
 
 typedef struct

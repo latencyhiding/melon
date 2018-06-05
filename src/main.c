@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <engine/tz_graphics_backend.h>
 #include <engine/tz_error.h>
