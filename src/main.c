@@ -68,7 +68,7 @@ GLenum glCheckError()
 #define WIDTH 800
 #define HEIGHT 600
 
-int main()
+int main(int argc, char ** argv)
 {
   GLFWwindow* window;
   if (!glfwInit())

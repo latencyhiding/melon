@@ -38,9 +38,9 @@ typedef void(*tz_cb_logger) (const char* message, ...);
 extern tz_cb_logger tz_logger_callback;
 
 #ifdef TZ_DEBUG
-#define TZ_LOG(message, ...) tz_logger_callback(message, __VA_ARGS__)
+#define TZ_LOG(...) tz_logger_callback(__VA_ARGS__)
 #else
-#define TZ_LOG(message, ...)
+#define TZ_LOG(...)
 #endif
 
 // Returns the default callbacks for our backend
