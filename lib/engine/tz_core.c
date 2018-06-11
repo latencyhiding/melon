@@ -78,41 +78,52 @@ tz_cb_logger tz_logger_callback = tz_default_logger;
 #define TZ_INVALID_BLOCK_INDEX (~0)
 
 /*
- * Fixed size blocks are allocated out of a large preallocated arena
+ * Fixed size blocks are allocated out of large preallocated arenas
  * There is a list of blocks and their positions in the arena
  * There is a freelist that tracks the memory blocks that can be claimed
  * 
- * Memory allocated to the pool is accessed with a "chain id" which represents
+ * Memory allocated to the pool is accessed with a "tag" which represents
  * a chain of blocks that must be freed at the same time.
- *
- * Thread safety is managed by a semaphore, which is only blocking when the arena
- * needs to grow, and a mutex that manages the freelist
-*/
+ * 
+ * Blocks are fixed size, but can point to other blocks when one has run
+ * out of memory.
+ */
 
 void tz_create_block_pool(tz_block_pool*         block_pool,
                           size_t                 block_size,
                           size_t                 num_blocks,
                           const tz_cb_allocator* allocator)
 {
+  block_pool->allocator = *allocator;
+
+  /**
+   * Block arena format:
+   * 
+   * | block data | next block pointer | blocks | 
+   * 
+   */
+
+  uint8_t* block_data = TZ_ALLOC(block_pool->allocator, sizeof())
+
 }
 
 void tz_delete_block_pool(tz_block_pool* block_pool)
 {
 }
 
-size_t tz_block_pool_new_chain(tz_block_pool* block_pool)
+tz_block_pool_tag tz_block_pool_new_arena(tz_block_pool* block_pool)
 {
 }
 
-void* tz_block_pool_push_arena(tz_block_pool* block_pool,
-                               size_t         chain_id,
-                               size_t         size,
-                               size_t         align)
+void* tz_block_pool_push_arena(tz_block_pool*    block_pool,
+                               tz_block_pool_tag tag,
+                               size_t            size,
+                               size_t            align)
 {
 }
 
-void tz_block_pool_free_arena(tz_block_pool* block_pool,
-                              size_t         chain_id)
+void tz_block_pool_free_arena(tz_block_pool*    block_pool,
+                              tz_block_pool_tag tag)
 {
 }
 

@@ -62,11 +62,10 @@ typedef struct tz_arena
 #define TZ_ALLOC_ARENA(alloc, size, align) ((tz_arena) { TZ_ALLOC(alloc, size, align), 0, size, NULL})
 #define TZ_FREE_ARENA(alloc, arena) (TZ_FREE(alloc, arena.start))
 
+typedef size_t tz_block_pool_tag;
 typedef struct tz_block
 {
-  uint8_t* start;
-  size_t used;
-  struct tz_block* next;
+  tz_arena arena;
 
   // If freed, this will store the next block in the freelist
   struct tz_block* freelist_next;
@@ -84,24 +83,24 @@ typedef struct
 
   tz_cb_allocator allocator;
 
-  cnd_t growth_cnd;
-  mtx_t growth_mtx;
-
   mtx_t freelist_mtx;
 } tz_block_pool;
 
+/**
+ * Allocator MUST be thread safe. Supplying NULL will use the default allocator
+ */
 void tz_create_block_pool(tz_block_pool*         block_pool,
                           size_t                 block_size,
                           size_t                 num_blocks,
                           const tz_cb_allocator* allocator);
 void tz_delete_block_pool(tz_block_pool* block_pool);
-size_t tz_block_pool_new_chain(tz_block_pool* block_pool);
-void* tz_block_pool_push_chain(tz_block_pool* block_pool,
-                               size_t         chain_id,
-                               size_t         size,
-                               size_t         align);
-void tz_block_pool_free_chain(tz_block_pool* block_pool,
-                              size_t         chain_id);
+tz_block_pool_tag tz_block_pool_new_arena(tz_block_pool* block_pool);
+void* tz_block_pool_push_arena(tz_block_pool*    block_pool,
+                               tz_block_pool_tag tag,
+                               size_t            size,
+                               size_t            align);
+void tz_block_pool_free_arena(tz_block_pool*    block_pool,
+                              tz_block_pool_tag tag);
 void tz_block_pool_free_all(tz_block_pool* block_pool);
 
 ////////////////////////////////////////////////////////////////////////////////
