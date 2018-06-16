@@ -26,9 +26,10 @@ struct tz_gfx_device
   tz_pool shader_pool;
   tz_pool buffer_pool;
   tz_pool pipeline_pool;
+  tz_pool command_buffer_pool;
 
   tz_gfx_device_resource_count resource_count;
-  tz_cb_allocator allocator;
+  tz_allocator allocator;
 
   void* backend_data;
   tz_gfx_device_api api;
@@ -68,24 +69,71 @@ typedef struct
 
 typedef struct
 {
-  tz_block* start_block;
-  tz_block* current_block;
-} tz_command_buffer;
+  tz_arena memory;
+  tz_draw_resources current_resources;
+  tz_pipeline current_pipeline;
 
-static tz_block* tz_allocate_command_block(tz_gfx_device* device)
+  cnd_t cond;
+  mtx_t mtx;
+} _tz_command_buffer;
+
+typedef struct
 {
-  
+  tz_buffer buffer;
+  size_t binding;
+} tz_command_bind_vertex_buffer;
+
+typedef struct
+{
+  tz_buffer buffer;
+} tz_command_bind_index_buffer;
+
+typedef struct
+{
+  tz_pipeline pipeline;
+} tz_command_bind_pipeline;
+
+typedef struct
+{
+  tz_draw_call_params draw_call_params;
+} tz_command_draw;
+
+void tz_cb_create(tz_gfx_device* device, _tz_command_buffer* cb, size_t block_size)
+{
 }
 
-static tz_block* tz_free_command_block(tz_gfx_device* device, tz_block* block)
+void tz_cb_destroy(tz_gfx_device* device, _tz_command_buffer* cb)
 {
-
 }
 
-void tz_command_buffer_write(tz_gfx_device* device, tz_command_buffer* command_buffer,
-                             tz_draw_group* draw_groups, size_t num_draw_groups)
+void tz_cb_begin(_tz_command_buffer* cb)
 {
+  // Attempt to pass submission fence, ie: do not begin recording until submission involving this command buffer is completed
+}
 
+void tz_cb_end(_tz_command_buffer* cb)
+{
+  // Block any operations until submission is complete
+}
+
+void tz_cb_bind_vertex_buffer(_tz_command_buffer* cb, tz_buffer buffer, size_t binding)
+{
+}
+
+void tz_cb_bind_index_buffer(_tz_command_buffer* cb, tz_buffer buffer)
+{
+}
+
+void tz_cb_bind_pipeline(_tz_command_buffer* cb, tz_pipeline pipeline)
+{
+}
+
+void tz_cb_draw(_tz_command_buffer* cb, const tz_draw_call_params* draw_call_params)
+{
+}
+
+void tz_cb_reset(_tz_command_buffer* cb)
+{
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -273,7 +321,7 @@ TZ_GFX_CREATE_SHADER(tz_create_shader_gl3)
 
   TZ_LOG("Shader successfully compiled and linked using %s and %s\n", shader_create_info->vertex_shader.name, shader_create_info->fragment_shader.name);
 
-  shader_id = tz_shader_id_init(&device->shader_pool);
+  shader_id = tz_shader_id_create(&device->shader_pool);
 
   if (!tz_pool_id_is_valid(&device->shader_pool, shader_id.id))
     return shader_id;
@@ -314,7 +362,7 @@ TZ_GFX_CREATE_BUFFER(tz_create_buffer_gl3)
     return buffer_id;
   }
 
-  buffer_id = tz_buffer_id_init(&device->buffer_pool);
+  buffer_id = tz_buffer_id_create(&device->buffer_pool);
 
   if (!tz_pool_id_is_valid(&device->buffer_pool, buffer_id.id))
   {
@@ -344,7 +392,7 @@ TZ_GFX_DELETE_BUFFER(tz_delete_buffer_gl3)
 TZ_GFX_CREATE_PIPELINE(tz_create_pipeline_gl3)
 {
   tz_gfx_device_gl* device_gl = (tz_gfx_device_gl*)device->backend_data;
-  tz_pipeline pipeline_id = tz_pipeline_id_init(&device->pipeline_pool);
+  tz_pipeline pipeline_id = tz_pipeline_id_create(&device->pipeline_pool);
 
   TZ_ASSERT(tz_pool_id_is_valid(&device->shader_pool, pipeline_create_info->shader_program.id), "Pipeline creation error: shader program ID invalid.");
 
@@ -564,9 +612,10 @@ tz_gfx_device_params tz_default_gfx_device_params()
 {
   return (tz_gfx_device_params) {
     .resource_count = {
-      .max_shaders = 100,
-      .max_buffers = 100,
-      .max_pipelines = 100,
+      .max_shaders = TZ_POOL_MAX_INDEX,
+      .max_buffers = TZ_POOL_MAX_INDEX,
+      .max_pipelines = TZ_POOL_MAX_INDEX,
+      .max_command_buffers = TZ_POOL_MAX_INDEX
     },
     .allocator = tz_default_cb_allocator(),
     .graphics_api = OPENGL3
@@ -591,6 +640,7 @@ tz_gfx_device* tz_create_device(tz_gfx_device_params* device_config)
   tz_create_pool(&device->shader_pool, device_config->resource_count.max_shaders, device_config->allocator);
   tz_create_pool(&device->buffer_pool, device_config->resource_count.max_buffers, device_config->allocator);
   tz_create_pool(&device->pipeline_pool, device_config->resource_count.max_pipelines, device_config->allocator);
+  tz_create_pool(&device->command_buffer_pool, device_config->resource_count.max_command_buffers, device_config->allocator);
 
   switch (device_config->graphics_api)
   {

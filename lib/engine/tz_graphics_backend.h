@@ -35,7 +35,7 @@ TZ_ID(tz_uniform_block);
 TZ_ID(tz_texture);
 TZ_ID(tz_shader);
 TZ_ID(tz_pipeline);
-TZ_ID(tz_command_list);
+TZ_ID(tz_command_buffer);
 
 // Basic vertex data types
 typedef enum
@@ -178,12 +178,13 @@ typedef struct
   size_t max_shaders;
   size_t max_buffers;
   size_t max_pipelines;
+  size_t max_command_buffers;
 } tz_gfx_device_resource_count;
 
 typedef struct
 {
   tz_gfx_device_resource_count resource_count;
-  const tz_cb_allocator* allocator;
+  const tz_allocator* allocator;
 
   enum
   {

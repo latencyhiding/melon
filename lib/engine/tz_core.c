@@ -37,10 +37,10 @@ static void tz_free(void* user_data, void* ptr)
   free(((void**) ptr)[-1]);
 }
 
-const tz_cb_allocator* tz_default_cb_allocator()
+const tz_allocator* tz_default_cb_allocator()
 {
-  static tz_cb_allocator* p_allocator = NULL;
-  static tz_cb_allocator allocator;
+  static tz_allocator* p_allocator = NULL;
+  static tz_allocator allocator;
 
   if (p_allocator == NULL)
   {
@@ -92,7 +92,7 @@ tz_cb_logger tz_logger_callback = tz_default_logger;
 void tz_create_block_pool(tz_block_pool*         block_pool,
                           size_t                 block_size,
                           size_t                 num_blocks,
-                          const tz_cb_allocator* allocator)
+                          const tz_allocator* allocator)
 {
   block_pool->allocator = *allocator;
 
@@ -102,8 +102,6 @@ void tz_create_block_pool(tz_block_pool*         block_pool,
    * | block data | next block pointer | blocks | 
    * 
    */
-
-  uint8_t* block_data = TZ_ALLOC(block_pool->allocator, sizeof())
 
 }
 
@@ -135,7 +133,7 @@ void tz_block_pool_free_all(tz_block_pool* block_pool)
 // Pool implementation 
 ////////////////////////////////////////////////////////////////////////////////
 
-void tz_create_pool(tz_pool* pool, size_t capacity, const tz_cb_allocator* allocator)
+void tz_create_pool(tz_pool* pool, size_t capacity, const tz_allocator* allocator)
 {
   pool->allocator = *allocator;
   pool->free_indices = (uint32_t*)TZ_ALLOC(pool->allocator, sizeof(uint32_t) * capacity, 4);
@@ -171,7 +169,7 @@ tz_pool_id tz_pool_create_id(tz_pool* pool)
 
     index = pool->free_indices[--pool->num_free_indices];
     generation = pool->generations[index];
-  } while (generation > TZ_POOL_MAX_GENERATION);
+  } while (generation >= TZ_POOL_MAX_GENERATION);
 
   new_id._initialized = true;
   new_id.index = index;

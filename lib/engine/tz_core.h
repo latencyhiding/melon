@@ -26,7 +26,7 @@ typedef struct
   void (*dealloc) (void* user_data, void* ptr);
 
   void* user_data;
-} tz_cb_allocator;
+} tz_allocator;
 
 // Convenience macros for the callbacks
 
@@ -44,7 +44,7 @@ extern tz_cb_logger tz_logger_callback;
 #endif
 
 // Returns the default callbacks for our backend
-const tz_cb_allocator* tz_default_cb_allocator();
+const tz_allocator* tz_default_cb_allocator();
 
 ////////////////////////////////////////////////////////////////////////////////
 // tz_block_pool - a thread safe, block-based memory pool
@@ -81,7 +81,7 @@ typedef struct
   size_t block_size;
   size_t num_blocks;
 
-  tz_cb_allocator allocator;
+  tz_allocator allocator;
 
   mtx_t freelist_mtx;
 } tz_block_pool;
@@ -92,7 +92,7 @@ typedef struct
 void tz_create_block_pool(tz_block_pool*         block_pool,
                           size_t                 block_size,
                           size_t                 num_blocks,
-                          const tz_cb_allocator* allocator);
+                          const tz_allocator* allocator);
 void tz_delete_block_pool(tz_block_pool* block_pool);
 tz_block_pool_tag tz_block_pool_new_arena(tz_block_pool* block_pool);
 void* tz_block_pool_push_arena(tz_block_pool*    block_pool,
@@ -123,10 +123,10 @@ typedef struct
   size_t capacity;
   size_t num_free_indices;
 
-  tz_cb_allocator allocator;
+  tz_allocator allocator;
 } tz_pool;
 
-void tz_create_pool(tz_pool* pool, size_t capacity, const tz_cb_allocator* allocator);
+void tz_create_pool(tz_pool* pool, size_t capacity, const tz_allocator* allocator);
 void tz_delete_pool(tz_pool* pool);
 tz_pool_id tz_pool_create_id(tz_pool* pool);
 bool tz_pool_id_is_valid(tz_pool* pool, tz_pool_id id);
@@ -134,7 +134,7 @@ tz_pool_id tz_pool_gen_invalid_id();
 bool tz_pool_delete_id(tz_pool* pool, tz_pool_id index);
 
 #define TZ_ID(name) typedef union { tz_pool_id id; uint32_t data; } name; \
-                    static inline name name##_id_init(tz_pool* pool) \
+                    static inline name name##_id_create(tz_pool* pool) \
                     {\
                       return (name) { tz_pool_create_id(pool) };\
                     }\
@@ -142,6 +142,7 @@ bool tz_pool_delete_id(tz_pool* pool, tz_pool_id index);
                     static inline bool name##_id_is_valid(tz_pool* pool, name id) { return tz_pool_id_is_valid(pool, id.id); }
 #define TZ_INVALID_ID(type) (type) { tz_pool_gen_invalid_id() };
 #define TZ_POOL_MAX_GENERATION ((uint8_t) ~0)
+#define TZ_POOL_MAX_INDEX ((uint32_t) ~0)
 
 /* Convenience macros for data sizes
  */
