@@ -116,8 +116,8 @@ int main(int argc, char ** argv)
   };
   tz_shader shader_program = tz_create_shader(device, &shader_params);
 
-  free(vertex_source);
-  free(fragment_source);
+  free((void*) vertex_source);
+  free((void*) fragment_source);
 
   float vertices[] = {
     -0.5f, -0.5f,
