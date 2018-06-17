@@ -3,7 +3,6 @@
 
 #include <stdint.h>
 #include <tinycthread.h>
-#define DEVICE_ALIGN 16
 
 typedef struct
 {
@@ -128,13 +127,15 @@ void tz_cb_create(tz_gfx_device *device, _tz_command_buffer *cb, size_t block_si
 
   cb->recording = false;
 
-  cb->memory = TZ_ALLOC_ARENA(device->allocator, block_size, DEVICE_ALIGN);
+  cb->memory = TZ_ALLOC_ARENA(device->allocator, block_size, TZ_DEFAULT_ALIGN);
 }
 
 void tz_cb_destroy(tz_gfx_device *device, _tz_command_buffer *cb)
 {
   cnd_destroy(&cb->cond);
-  mtx_destroy(&cb->cond);
+  mtx_destroy(&cb->mtx);
+
+  TZ_FREE_ARENA(cb->memory);
 }
 
 void tz_cb_begin(_tz_command_buffer *cb)
@@ -272,12 +273,12 @@ static GLenum gl_data_format(tz_vertex_data_type type)
 
 TZ_GFX_CREATE_DEVICE(tz_create_device_gl3)
 {
-  size_t total_size = sizeof(tz_gfx_device_gl) + DEVICE_ALIGN + device_config->resource_count.max_shaders * sizeof(GLuint) + DEVICE_ALIGN + device_config->resource_count.max_buffers * sizeof(GLuint) + DEVICE_ALIGN + device_config->resource_count.max_pipelines * sizeof(tz_pipeline) + DEVICE_ALIGN;
+  size_t total_size = sizeof(tz_gfx_device_gl) + TZ_DEFAULT_ALIGN + device_config->resource_count.max_shaders * sizeof(GLuint) + TZ_DEFAULT_ALIGN + device_config->resource_count.max_buffers * sizeof(GLuint) + TZ_DEFAULT_ALIGN + device_config->resource_count.max_pipelines * sizeof(tz_pipeline) + TZ_DEFAULT_ALIGN;
 
-  tz_gfx_device_gl *device_gl = (tz_gfx_device_gl *)TZ_ALLOC((*(device_config->allocator)), total_size, DEVICE_ALIGN);
-  device_gl->shader_programs = (GLuint *)tz_align_forward(device_gl + 1, DEVICE_ALIGN);
-  device_gl->buffers = (GLuint *)tz_align_forward(device_gl->shader_programs + sizeof(GLuint) * device_config->resource_count.max_shaders, DEVICE_ALIGN);
-  device_gl->pipelines = (tz_pipeline_gl *)tz_align_forward(device_gl->buffers + sizeof(GLuint) * device_config->resource_count.max_buffers, DEVICE_ALIGN);
+  tz_gfx_device_gl *device_gl = (tz_gfx_device_gl *)TZ_ALLOC((*(device_config->allocator)), total_size, TZ_DEFAULT_ALIGN);
+  device_gl->shader_programs = (GLuint *)tz_align_forward(device_gl + 1, TZ_DEFAULT_ALIGN);
+  device_gl->buffers = (GLuint *)tz_align_forward(device_gl->shader_programs + sizeof(GLuint) * device_config->resource_count.max_shaders, TZ_DEFAULT_ALIGN);
+  device_gl->pipelines = (tz_pipeline_gl *)tz_align_forward(device_gl->buffers + sizeof(GLuint) * device_config->resource_count.max_buffers, TZ_DEFAULT_ALIGN);
   device_gl->dummy_vao = 0;
 
   device->backend_data = device_gl;
@@ -314,7 +315,7 @@ static GLuint compile_shader(tz_gfx_device *device, GLenum type, const tz_shader
     GLint len = 0;
     glGetShaderiv(shader_stage, GL_INFO_LOG_LENGTH, &len);
 
-    char *error_buffer = TZ_ALLOC(device->allocator, sizeof(char) * len, DEVICE_ALIGN);
+    char *error_buffer = TZ_ALLOC(device->allocator, sizeof(char) * len, TZ_DEFAULT_ALIGN);
     glGetShaderInfoLog(shader_stage, len, &len, error_buffer);
 
     TZ_LOG("Shader compilation error in %s: %s\n", shader_stage_create_info->name, error_buffer);
@@ -357,7 +358,7 @@ TZ_GFX_CREATE_SHADER(tz_create_shader_gl3)
     GLint len = 0;
     glGetProgramiv(program, GL_INFO_LOG_LENGTH, &len);
 
-    char *error_buffer = TZ_ALLOC(device->allocator, sizeof(char) * len, DEVICE_ALIGN);
+    char *error_buffer = TZ_ALLOC(device->allocator, sizeof(char) * len, TZ_DEFAULT_ALIGN);
     glGetProgramInfoLog(program, len, &len, error_buffer);
 
     TZ_LOG("Shader linking error: %s\n", error_buffer);
@@ -667,10 +668,11 @@ tz_gfx_device_params tz_default_gfx_device_params()
 {
   return (tz_gfx_device_params){
       .resource_count = {
-          .max_shaders = TZ_POOL_MAX_INDEX,
-          .max_buffers = TZ_POOL_MAX_INDEX,
-          .max_pipelines = TZ_POOL_MAX_INDEX,
-          .max_command_buffers = TZ_POOL_MAX_INDEX},
+          .max_shaders = 100,
+          .max_buffers = 100,
+          .max_pipelines = 100,
+          .max_command_buffers = 100 
+      },
       .allocator = tz_default_cb_allocator(),
       .graphics_api = OPENGL3};
 }
@@ -686,7 +688,7 @@ tz_gfx_device *tz_create_device(tz_gfx_device_params *device_config)
 
   device_config->allocator = device_config->allocator ? device_config->allocator : tz_default_cb_allocator();
 
-  tz_gfx_device *device = TZ_ALLOC((*(device_config->allocator)), sizeof(tz_gfx_device), DEVICE_ALIGN);
+  tz_gfx_device *device = TZ_ALLOC((*(device_config->allocator)), sizeof(tz_gfx_device), TZ_DEFAULT_ALIGN);
   device->allocator = *(device_config->allocator);
   device->resource_count = device_config->resource_count;
 

@@ -56,6 +56,76 @@ const tz_allocator* tz_default_cb_allocator()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Arena functions
+////////////////////////////////////////////////////////////////////////////////
+
+tz_arena tz_create_arena(tz_memory_block *prev, uint32_t alloc_flags, size_t size, size_t align, const tz_allocator *alloc)
+{
+  tz_memory_block* result = alloc->alloc(alloc->user_data, size + align + sizeof(tz_memory_block), align);
+  result->start = (uint8_t*) tz_align_forward(result + 1, align);
+  result->offset = 0;
+  result->size = size;
+  result->allocator = *alloc;
+  result->prev = prev;
+
+  tz_arena arena;
+  arena.current_block = result;
+
+  return arena;
+}
+
+void tz_destroy_arena(tz_arena* arena)
+{
+  while (arena->current_block)
+  {
+    tz_memory_block* prev = arena->current_block->prev;
+    TZ_FREE(arena->current_block->allocator, arena->current_block);
+
+    arena->current_block = prev;
+  }
+}
+
+void* tz_arena_push_size(tz_arena* arena, size_t size, size_t align)
+{
+  // Try to increment offset on current block
+  tz_memory_block* block = arena->current_block;
+  uint8_t* result = (uint8_t*) tz_align_forward(block->start + block->offset, align);
+  size_t offset = result - block->start + size;
+
+  // If the new offset is within the block, return the new pointer
+  if (offset < block->size)
+  {
+    block->offset = offset;
+    return (void*) result;
+  }
+
+  // Allocate a new block
+  size_t new_block_size = arena->allocation_flags & TZ_ALLOC_EXPAND_DOUBLE ? block->size * 2 : block->size;
+  while (size > new_block_size)
+    new_block_size *= 2;
+  new_block_size += align;
+
+  *arena = tz_create_arena(block, arena->allocation_flags, new_block_size, align, &block->allocator);
+  tz_memory_block* new_block = arena->current_block;
+
+  result = (uint8_t*) tz_align_forward(new_block->start, align);
+  new_block->offset = tz_aligned_size(new_block->start, new_block->offset + size, align);
+
+  return result;
+}
+
+// Deallocate extra blocks, reset offset to 0
+void tz_arena_reset(tz_arena* arena)
+{
+  tz_memory_block* current_block = arena->current_block;
+  while (current_block->prev)
+  {
+    TZ_FREE(current_block->allocator, current_block);
+  }
+  current_block->offset = 0;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Default logging callbacks
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -70,64 +140,6 @@ static void tz_default_logger(const char* message, ...)
 }
 
 tz_cb_logger tz_logger_callback = tz_default_logger;
-
-////////////////////////////////////////////////////////////////////////////////
-// Block pool implementation
-////////////////////////////////////////////////////////////////////////////////
-
-#define TZ_INVALID_BLOCK_INDEX (~0)
-
-/*
- * Fixed size blocks are allocated out of large preallocated arenas
- * There is a list of blocks and their positions in the arena
- * There is a freelist that tracks the memory blocks that can be claimed
- * 
- * Memory allocated to the pool is accessed with a "tag" which represents
- * a chain of blocks that must be freed at the same time.
- * 
- * Blocks are fixed size, but can point to other blocks when one has run
- * out of memory.
- */
-
-void tz_create_block_pool(tz_block_pool*         block_pool,
-                          size_t                 block_size,
-                          size_t                 num_blocks,
-                          const tz_allocator* allocator)
-{
-  block_pool->allocator = *allocator;
-
-  /**
-   * Block arena format:
-   * 
-   * | block data | next block pointer | blocks | 
-   * 
-   */
-
-}
-
-void tz_delete_block_pool(tz_block_pool* block_pool)
-{
-}
-
-tz_block_pool_tag tz_block_pool_new_arena(tz_block_pool* block_pool)
-{
-}
-
-void* tz_block_pool_push_arena(tz_block_pool*    block_pool,
-                               tz_block_pool_tag tag,
-                               size_t            size,
-                               size_t            align)
-{
-}
-
-void tz_block_pool_free_arena(tz_block_pool*    block_pool,
-                              tz_block_pool_tag tag)
-{
-}
-
-void tz_block_pool_free_all(tz_block_pool* block_pool)
-{
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Pool implementation 

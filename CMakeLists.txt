@@ -43,6 +43,7 @@ add_library(header_only_impls STATIC
 include_directories(thirdparty)
 
 ## libs
+set(CMAKE_CXX_FLAGS_DEBUG  "-g")
 include_directories(lib)
 # engine lib
 set(LIB_NAME engine)
@@ -62,4 +63,4 @@ add_executable(${APP_NAME} ${SOURCES})
 set_property(TARGET ${APP_NAME} PROPERTY C_STANDARD 99)
 set_property(TARGET ${APP_NAME} PROPERTY C_STANDARD_REQUIRED ON)
 
-target_link_libraries(${APP_NAME} ${OPENGL_LIBRARIES} glfw glad tinycthread header_only_impls engine)
+target_link_libraries(${APP_NAME} ${OPENGL_LIBRARIES} engine glfw glad tinycthread header_only_impls)
