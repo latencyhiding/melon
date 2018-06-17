@@ -18,6 +18,12 @@ inline static void* tz_align_forward(void* ptr, size_t align)
   return (void*) (uint_ptr + (align - (uint_ptr % align)));
 }
 
+inline size_t tz_aligned_size(void* ptr, size_t size, size_t align)
+{
+  uint8_t* ptr_u8 = (uint8_t*) ptr;
+  return (uint8_t*) tz_align_forward(ptr_u8 + size, align) - ptr_u8;
+}
+
 // Functors for allocation callbacks
 typedef struct
 {
@@ -47,61 +53,76 @@ extern tz_cb_logger tz_logger_callback;
 const tz_allocator* tz_default_cb_allocator();
 
 ////////////////////////////////////////////////////////////////////////////////
-// tz_block_pool - a thread safe, block-based memory pool
+// tz_arena - fixed sized linear memory areas backed by custom allocators
 ////////////////////////////////////////////////////////////////////////////////
 
-typedef struct tz_arena
+typedef struct tz_memory_block
 {
-  uint8_t* start;
+  uint8_t *start;
   size_t offset;
   size_t size;
 
-  struct tz_arena* next;
-} tz_arena;
-
-#define TZ_ALLOC_ARENA(alloc, size, align) ((tz_arena) { TZ_ALLOC(alloc, size, align), 0, size, NULL})
-#define TZ_FREE_ARENA(alloc, arena) (TZ_FREE(alloc, arena.start))
-
-typedef size_t tz_block_pool_tag;
-typedef struct tz_block
-{
-  tz_arena arena;
-
-  // If freed, this will store the next block in the freelist
-  struct tz_block* freelist_next;
-} tz_block;
+  tz_allocator allocator;
+  struct tz_memory_block* prev;
+} tz_memory_block;
 
 typedef struct
 {
-  tz_arena memory;
+  tz_memory_block* current_block;
+} tz_arena;
 
-  tz_block* freelist_head;
-  tz_block* freelist_tail;
+#define TZ_DEFAULT_ALIGN 16
 
-  size_t block_size;
-  size_t num_blocks;
+inline void tz_create_arena(tz_arena* arena, tz_memory_block* prev, const tz_allocator* alloc, size_t size, size_t align)
+{
+  tz_memory_block* result = alloc->alloc(alloc->user_data, size + align + sizeof(tz_memory_block), align);
+  result->start = (uint8_t*) tz_align_forward(result + 1, align);
+  result->offset = 0;
+  result->size = size;
+  result->allocator = *alloc;
+  result->prev = prev;
 
-  tz_allocator allocator;
+  arena->current_block = result;
+}
 
-  mtx_t freelist_mtx;
-} tz_block_pool;
+inline void tz_destroy_arena(tz_arena* arena)
+{
+  while (arena->current_block)
+  {
+    tz_memory_block* prev = arena->current_block->prev;
+    TZ_FREE(current_block->allocator, arena->current_block);
 
-/**
- * Allocator MUST be thread safe. Supplying NULL will use the default allocator
- */
-void tz_create_block_pool(tz_block_pool*         block_pool,
-                          size_t                 block_size,
-                          size_t                 num_blocks,
-                          const tz_allocator* allocator);
-void tz_delete_block_pool(tz_block_pool* block_pool);
-tz_block_pool_tag tz_block_pool_new_arena(tz_block_pool* block_pool);
-void* tz_block_pool_push_arena(tz_block_pool*    block_pool,
-                               tz_block_pool_tag tag,
-                               size_t            size,
-                               size_t            align);
-void tz_block_pool_free_arena(tz_block_pool*    block_pool,
-                              tz_block_pool_tag tag);
-void tz_block_pool_free_all(tz_block_pool* block_pool);
+    arena->current_block = prev;
+  }
+}
+
+inline void* tz_arena_push_size(const tz_allocator* alloc, tz_arena* arena, size_t size, size_t align)
+{
+  // Try to increment offset on current block
+  tz_memory_block* block = arena->current_block;
+  uint8_t* result = (uint8_t*) tz_align_forward(block->start + block->offset, align);
+  size_t offset = result - block->start + size;
+  // If the new offset is within the block, return the new pointer
+  if (offset < block->size)
+  {
+    block->offset = offset;
+    return (void*) result;
+  }
+
+  // Allocate a new block
+  size_t new_block_size = block->size;
+  while (size > new_block_size)
+    new_block_size *= 2;
+  new_block_size += align;
+
+  tz_create_arena(arena, block, new_block_size, alloc, size, align);
+  tz_memory_block* new_block = arena->current_block;
+
+  result = (uint8_t*) tz_align_forward(new_block->start, align);
+  new_block->offset = tz_aligned_size(new_block->start, new_block->offset + size, align);
+
+  return result;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // tz_pool - an index pool with a stack-like behavior. Indices are allocated in 
