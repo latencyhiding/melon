@@ -148,8 +148,8 @@ tz_cb_logger tz_logger_callback = tz_default_logger;
 void tz_create_pool(tz_pool* pool, size_t capacity, const tz_allocator* allocator)
 {
   pool->allocator = *allocator;
-  pool->free_indices = (uint32_t*)TZ_ALLOC(pool->allocator, sizeof(uint32_t) * capacity, 4);
-  pool->generations = (uint8_t*)TZ_ALLOC(pool->allocator, sizeof(uint8_t) * capacity, 4);
+  pool->free_indices = (uint32_t*)TZ_ALLOC(pool->allocator, sizeof(uint32_t) * capacity, TZ_DEFAULT_ALIGN);
+  pool->generations = (uint8_t*)TZ_ALLOC(pool->allocator, sizeof(uint8_t) * capacity, TZ_DEFAULT_ALIGN);
   pool->capacity = capacity;
   pool->num_free_indices = capacity;
 
@@ -177,7 +177,21 @@ tz_pool_id tz_pool_create_id(tz_pool* pool)
   do
   {
     if (pool->num_free_indices == 0)
-      return new_id;
+    {
+      // Reallocate
+      size_t new_capacity = pool->capacity * 2;
+      pool->free_indices = TZ_REALLOC(pool->allocator, pool->free_indices, new_capacity, TZ_DEFAULT_ALIGN);
+      pool->generations = TZ_REALLOC(pool->allocator, pool->generations, new_capacity, TZ_DEFAULT_ALIGN);
+
+      for (size_t i = 0; i < new_capacity; i++)
+        pool->free_indices[i] = new_capacity - 1 - i; 
+
+      for (size_t i = pool->capacity; i < new_capacity; i++)
+        pool->generations[i] = 0; 
+
+      pool->capacity = new_capacity;
+      pool->num_free_indices = new_capacity;
+    }
 
     index = pool->free_indices[--pool->num_free_indices];
     generation = pool->generations[index];

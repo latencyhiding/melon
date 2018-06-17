@@ -668,10 +668,10 @@ tz_gfx_device_params tz_default_gfx_device_params()
 {
   return (tz_gfx_device_params){
       .resource_count = {
-          .max_shaders = 100,
-          .max_buffers = 100,
-          .max_pipelines = 100,
-          .max_command_buffers = 100 
+          .max_shaders = 256,
+          .max_buffers = 256,
+          .max_pipelines = 256,
+          .max_command_buffers = 256 
       },
       .allocator = tz_default_cb_allocator(),
       .graphics_api = OPENGL3};

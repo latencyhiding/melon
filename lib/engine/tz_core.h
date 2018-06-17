@@ -90,7 +90,7 @@ typedef struct
 #define TZ_FREE_ARENA(arena) tz_destroy_arena(&arena)
 #define TZ_ARENA_PUSH(arena, size, align) tz_arena_push_size(&arena, size, align)
 #define TZ_ARENA_PUSH_STRUCT(arena, T) ((T *)TZ_ARENA_PUSH(arena, sizeof(T), sizeof(T)))
-#define TZ_ARENA_PUSH_ARRAY(arena, T, capacity, align) ((T *)TZ_ARENA_PUSH(arena, sizeof(T) * capacity), sizeof(T))
+#define TZ_ARENA_PUSH_ARRAY(arena, T, length, align) ((T *)TZ_ARENA_PUSH(arena, sizeof(T) * length), sizeof(T))
 
 tz_arena tz_create_arena(tz_memory_block *prev, uint32_t alloc_flags, size_t size, size_t align, const tz_allocator *alloc);
 void tz_destroy_arena(tz_arena *arena);
@@ -98,16 +98,71 @@ void *tz_arena_push_size(tz_arena *arena, size_t size, size_t align);
 void tz_arena_reset(tz_arena *arena);
 
 ////////////////////////////////////////////////////////////////////////////////
+// tz_vector - a stretchy array, like stb stretchy_buffer but with a custom
+// allocator
+////////////////////////////////////////////////////////////////////////////////
+
+#define TZ_ALLOC_VECTOR(alloc, T, capacity) ((T*) tz_create_vector(capacity, sizeof(T), &alloc))
+#define TZ_FREE_VECTOR(arr) tz_destroy_vector((void*) arr)
+#define TZ_VECTOR(arr) ((tz_vector*) arr - 1)
+#define TZ_VECTOR_LENGTH(arr) TZ_VECTOR(arr)->length
+#define TZ_VECTOR_CAPACITY(arr) TZ_VECTOR(arr)->capacity
+#define TZ_VECTOR_PUSH(arr, v) (arr = tz_grow(TZ_VECTOR(ptr), 1), arr[TZ_VECTOR_LENGTH(arr)++] = v)
+#define TZ_VECTOR_GROW(arr, amount) (arr = tz_grow(TZ_VECTOR(ptr), amount))
+
+typedef struct
+{
+  size_t length;
+  size_t capacity;
+  size_t element_size;
+  tz_allocator alloc;
+} tz_vector;
+
+static inline tz_vector* tz_create_vector(size_t capacity, size_t element_size, const tz_allocator* alloc)
+{
+  tz_vector* vector = (tz_vector*) TZ_ALLOC((*alloc), capacity * element_size + sizeof(tz_vector), TZ_DEFAULT_ALIGN);
+  vector->length = 0;
+  vector->capacity = capacity;
+  vector->element_size = element_size;
+  vector->alloc = *alloc;
+
+  return vector;
+}
+
+static inline void* tz_destroy_vector(tz_vector* vector)
+{
+  TZ_FREE(vector->alloc, vector);
+}
+
+static inline void* tz_grow(tz_vector* vector, size_t amount)
+{
+  size_t minimum_capacity = vector->length + amount;
+  if (minimum_capacity < vector->capacity)
+  {
+    return (void*) (vector + 1);
+  }
+
+  size_t double_capacity = vector->capacity * 2;
+  size_t new_capacity = minimum_capacity > double_capacity ? minimum_capacity : double_capacity;
+
+  vector = TZ_REALLOC(vector->alloc, vector, new_capacity * vector->element_size, TZ_DEFAULT_ALIGN);
+  vector->capacity = new_capacity;
+
+  return (void*) (vector + 1);
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // tz_pool - an index pool with a stack-like behavior. Indices are allocated in
 // a FIFO order.
 ////////////////////////////////////////////////////////////////////////////////
 
+#define TZ_GENERATION_BITS 7
+#define TZ_INDEX_BITS 24
 typedef struct
 {
   bool _initialized : 1;
-  uint8_t generation : 7;
-  uint32_t index : 24;
-
+  uint8_t generation : TZ_GENERATION_BITS;
+  uint32_t index : TZ_INDEX_BITS;
 } tz_pool_id;
 
 typedef struct
@@ -139,8 +194,8 @@ bool tz_pool_delete_id(tz_pool *pool, tz_pool_id index);
   static inline bool name##_id_delete(tz_pool *pool, name id) { return tz_pool_delete_id(pool, id.id); } \
   static inline bool name##_id_is_valid(tz_pool *pool, name id) { return tz_pool_id_is_valid(pool, id.id); }
 #define TZ_INVALID_ID(type) (type){tz_pool_gen_invalid_id()};
-#define TZ_POOL_MAX_GENERATION ((uint8_t)~0)
-#define TZ_POOL_MAX_INDEX ((uint32_t)~0)
+#define TZ_POOL_MAX_GENERATION ((uint8_t) (1 << TZ_GENERATION_BITS) - 1)
+#define TZ_POOL_MAX_INDEX ((uint32_t) (1 << TZ_INDEX_BITS) - 1)
 
 /* Convenience macros for data sizes
  */
