@@ -153,10 +153,10 @@ void tz_create_pool(tz_pool* pool, size_t capacity, const tz_allocator* allocato
   pool->capacity = capacity;
   pool->num_free_indices = capacity;
 
-  for (uint32_t i = 0; i < capacity; i++)
+  for (size_t i = 0; i < capacity; i++)
     pool->free_indices[capacity - 1 - i] = i;
 
-  for (uint8_t i = 0; i < capacity; i++)
+  for (size_t i = 0; i < capacity; i++)
     pool->generations[i] = 0;
 }
 
