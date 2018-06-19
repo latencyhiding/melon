@@ -20,11 +20,11 @@ tz_execute_draw_groups_f* tz_execute_draw_groups;
 
 tz_gfx_handle tz_gfx_invalid_handle;
 
-struct tz_gfx_device
+typedef struct 
 {
   tz_gfx_device_resource_count resource_count;
   tz_allocator allocator;
-};
+} tz_gfx_device;
 
 static tz_gfx_device g_device;
 
@@ -474,23 +474,20 @@ static void gl3_clear_pipeline(tz_pipeline pipeline_id)
 static void gl3_bind_pipeline(tz_draw_state *current_draw_state, const tz_pipeline pipeline_id)
 {
   tz_pipeline_gl* pipeline_gl = tz_gl_pipeline_pool_get_p(&g_device_gl.pipelines, pipeline_id.data);
-  if (current_draw_state->pipeline.data != pipeline_id.data)
-  {
-    current_draw_state->pipeline = pipeline_id;
-    gl3_clear_pipeline(pipeline_id);
+  current_draw_state->pipeline = pipeline_id;
+  gl3_clear_pipeline(pipeline_id);
 
-    TZ_ASSERT(TZ_GFX_HANDLE_IS_VALID(pipeline_gl->shader_program),
-              "Pipeline creation error: shader program ID invalid.");
-    GLuint shader_program = TZ_GL_HANDLE(pipeline_gl->shader_program);
+  TZ_ASSERT(TZ_GFX_HANDLE_IS_VALID(pipeline_gl->shader_program),
+            "Pipeline creation error: shader program ID invalid.");
+  GLuint shader_program = TZ_GL_HANDLE(pipeline_gl->shader_program);
 
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glUseProgram(shader_program);
-  }
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+  glUseProgram(shader_program);
 }
 
 static void gl3_bind_resources(tz_pipeline pipeline_id, tz_draw_state *current_draw_state, const tz_draw_resources *draw_resources)
 {
-  tz_pipeline_gl* pipeline_gl = tz_gl_pipeline_pool_get_p(&g_device_gl.pipelines, pipeline_id.data);
+  tz_pipeline_gl *pipeline_gl = tz_gl_pipeline_pool_get_p(&g_device_gl.pipelines, pipeline_id.data);
 
   for (size_t attrib_index = 0; attrib_index < pipeline_gl->num_attribs; attrib_index++)
   {
@@ -600,11 +597,9 @@ tz_gfx_device_params tz_default_gfx_device_params()
           .max_shaders = 256,
           .max_buffers = 256,
           .max_pipelines = 256,
-          .max_command_buffers = 256 
-      },
+          .max_command_buffers = 256},
       .allocator = tz_default_cb_allocator(),
-      .graphics_api = OPENGL3
-    };
+      .graphics_api = OPENGL3};
 }
 
 void tz_gfx_init(tz_gfx_device_params *device_config)
