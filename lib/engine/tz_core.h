@@ -9,6 +9,15 @@
 
 #include <tinycthread.h>
 
+#include "tz_error.h"
+
+/* Convenience macros for data sizes
+ */
+
+#define TZ_KILOBYTE(n) (1024 * n)
+#define TZ_MEGABYTE(n) (1024 * TZ_KILOBYTE(n))
+#define TZ_GIGABYTE(n) (1024 * TZ_MEGABYTE(n))
+
 // Utility for aligning pointers
 static inline void* tz_align_forward(void* ptr, size_t align)
 {
@@ -98,77 +107,15 @@ void *tz_arena_push_size(tz_arena *arena, size_t size, size_t align);
 void tz_arena_reset(tz_arena *arena);
 
 ////////////////////////////////////////////////////////////////////////////////
-// tz_vector - a stretchy array, like stb stretchy_buffer but with a custom
-// allocator
-////////////////////////////////////////////////////////////////////////////////
-
-#define TZ_ALLOC_VECTOR(alloc, T, capacity) ((T*) tz_create_vector(capacity, sizeof(T), &alloc))
-#define TZ_FREE_VECTOR(arr) tz_destroy_vector((void*) arr)
-#define TZ_VECTOR(arr) ((tz_vector*) arr - 1)
-#define TZ_VECTOR_LENGTH(arr) TZ_VECTOR(arr)->length
-#define TZ_VECTOR_CAPACITY(arr) TZ_VECTOR(arr)->capacity
-#define TZ_VECTOR_PUSH(arr, v) (arr = tz_grow(TZ_VECTOR(ptr), 1), arr[TZ_VECTOR_LENGTH(arr)++] = v)
-#define TZ_VECTOR_GROW(arr, amount) (arr = tz_grow(TZ_VECTOR(ptr), amount))
-
-typedef struct
-{
-  size_t length;
-  size_t capacity;
-  size_t element_size;
-  tz_allocator alloc;
-} tz_vector;
-
-static inline tz_vector* tz_create_vector(size_t capacity, size_t element_size, const tz_allocator* alloc)
-{
-  tz_vector* vector = (tz_vector*) TZ_ALLOC((*alloc), capacity * element_size + sizeof(tz_vector), TZ_DEFAULT_ALIGN);
-  vector->length = 0;
-  vector->capacity = capacity;
-  vector->element_size = element_size;
-  vector->alloc = *alloc;
-
-  return vector;
-}
-
-static inline void* tz_destroy_vector(tz_vector* vector)
-{
-  TZ_FREE(vector->alloc, vector);
-}
-
-static inline void* tz_grow(tz_vector* vector, size_t amount)
-{
-  size_t minimum_capacity = vector->length + amount;
-  if (minimum_capacity < vector->capacity)
-  {
-    return (void*) (vector + 1);
-  }
-
-  size_t double_capacity = vector->capacity * 2;
-  size_t new_capacity = minimum_capacity > double_capacity ? minimum_capacity : double_capacity;
-
-  vector = TZ_REALLOC(vector->alloc, vector, new_capacity * vector->element_size, TZ_DEFAULT_ALIGN);
-  vector->capacity = new_capacity;
-
-  return (void*) (vector + 1);
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // tz_pool - an index pool with a stack-like behavior. Indices are allocated in
 // a FIFO order.
 ////////////////////////////////////////////////////////////////////////////////
 
-#define TZ_GENERATION_BITS 7
-#define TZ_INDEX_BITS 24
-typedef struct
-{
-  bool _initialized : 1;
-  uint8_t generation : TZ_GENERATION_BITS;
-  uint32_t index : TZ_INDEX_BITS;
-} tz_pool_id;
+typedef size_t tz_pool_index;
 
 typedef struct
 {
-  uint32_t *free_indices;
-  uint8_t *generations;
+  size_t* free_indices;
   size_t capacity;
   size_t num_free_indices;
 
@@ -177,31 +124,42 @@ typedef struct
 
 void tz_create_pool(tz_pool *pool, size_t capacity, const tz_allocator *allocator);
 void tz_delete_pool(tz_pool *pool);
-tz_pool_id tz_pool_create_id(tz_pool *pool);
-bool tz_pool_id_is_valid(tz_pool *pool, tz_pool_id id);
-tz_pool_id tz_pool_gen_invalid_id();
-bool tz_pool_delete_id(tz_pool *pool, tz_pool_id index);
+tz_pool_index tz_pool_create_index(tz_pool *pool);
+bool tz_pool_index_is_valid(tz_pool *pool, tz_pool_index id);
+tz_pool_index tz_pool_gen_invalid_index();
+bool tz_pool_delete_index(tz_pool *pool, tz_pool_index index);
 
-#define TZ_ID(name)                                                                                      \
-  typedef union {                                                                                        \
-    tz_pool_id id;                                                                                       \
-    uint32_t data;                                                                                       \
-  } name;                                                                                                \
-  static inline name name##_id_create(tz_pool *pool)                                                     \
-  {                                                                                                      \
-    return (name){tz_pool_create_id(pool)};                                                              \
-  }                                                                                                      \
-  static inline bool name##_id_delete(tz_pool *pool, name id) { return tz_pool_delete_id(pool, id.id); } \
-  static inline bool name##_id_is_valid(tz_pool *pool, name id) { return tz_pool_id_is_valid(pool, id.id); }
-#define TZ_INVALID_ID(type) (type){tz_pool_gen_invalid_id()};
-#define TZ_POOL_MAX_GENERATION ((uint8_t) (1 << TZ_GENERATION_BITS) - 1)
-#define TZ_POOL_MAX_INDEX ((uint32_t) (1 << TZ_INDEX_BITS) - 1)
+////////////////////////////////////////////////////////////////////////////////
+// tz_pool_vector - a vector that uses an id pool for access
+////////////////////////////////////////////////////////////////////////////////
 
-/* Convenience macros for data sizes
- */
+typedef struct
+{
+  tz_pool pool;
 
-#define TZ_KILOBYTE(n) (1024 * n)
-#define TZ_MEGABYTE(n) (1024 * TZ_KILOBYTE(n))
-#define TZ_GIGABYTE(n) (1024 * TZ_MEGABYTE(n))
+  void* data;
+  size_t capacity;
+  size_t element_size;
+
+  tz_allocator allocator;
+} tz_pool_vector;
+
+void tz_create_pool_vector(tz_pool_vector* pv, size_t capacity, size_t element_size, const tz_allocator* allocator);
+void tz_delete_pool_vector(tz_pool_vector* pv);
+tz_pool_index tz_pool_vector_push(tz_pool_vector* pv, void* val);
+
+#define TZ_POOL_VECTOR(name, T) \
+typedef struct \
+{\
+  tz_pool_vector pv;\
+} tz_##name##_pool;\
+static inline void tz_create_##name##_pool(tz_##name##_pool* pv, size_t capacity, const tz_allocator* allocator) { tz_create_pool_vector(&pv->pv, capacity, sizeof(T), allocator); } \
+static inline void tz_delete_##name##_pool(tz_##name##_pool* pv) { tz_delete_pool_vector(&pv->pv); } \
+static inline T tz_##name##_pool_get(tz_##name##_pool* pv, tz_pool_index id) { return ((T*) pv->pv.data)[id];} \
+static inline T* tz_##name##_pool_get_p(tz_##name##_pool* pv, tz_pool_index id) { return ((T*) pv->pv.data) + id;} \
+static inline void tz_##name##_pool_set(tz_##name##_pool* pv, tz_pool_index id, T val) { ((T*) pv->pv.data)[id] = val; } \
+static inline tz_pool_index tz_##name##_pool_push(tz_##name##_pool* pv, T val) { return tz_pool_vector_push(&pv->pv, &val);} \
+static inline bool tz_##name##_pool_delete(tz_##name##_pool* pv, tz_pool_index index) { return tz_pool_delete_index(&pv->pv.pool, index); } \
+static inline bool tz_##name##_pool_index_is_valid(tz_##name##_pool* pv, tz_pool_index index) { return tz_pool_index_is_valid(&pv->pv.pool, index); }
 
 #endif

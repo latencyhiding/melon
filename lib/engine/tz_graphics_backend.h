@@ -27,15 +27,20 @@
 // - the following types are used to describe resources
 ////////////////////////////////////////////////////////////////////////////////
 
+typedef uintptr_t tz_gfx_handle;
+extern tz_gfx_handle tz_gfx_invalid_handle;
+#define TZ_GFX_HANDLE(name) typedef struct { tz_gfx_handle data; } name;
+#define TZ_GFX_HANDLE_IS_VALID(handle) (handle.data != tz_gfx_invalid_handle)
+
 /* tz_*_id - typesafe wrappers for ids of different kinds of resources
  */
 
-TZ_ID(tz_buffer);
-TZ_ID(tz_uniform_block);
-TZ_ID(tz_texture);
-TZ_ID(tz_shader);
-TZ_ID(tz_pipeline);
-TZ_ID(tz_command_buffer);
+TZ_GFX_HANDLE(tz_buffer);
+TZ_GFX_HANDLE(tz_uniform_block);
+TZ_GFX_HANDLE(tz_texture);
+TZ_GFX_HANDLE(tz_shader);
+TZ_GFX_HANDLE(tz_pipeline);
+TZ_GFX_HANDLE(tz_command_buffer);
 
 // Basic vertex data types
 typedef enum
@@ -210,39 +215,41 @@ tz_gfx_device_params tz_default_gfx_device_params();
 *  device_config - parameter struct containing the parameters of a device.
 *                  default parameters will be used if this is NULL.
 */
-#define TZ_GFX_CREATE_DEVICE(name) void name(tz_gfx_device* device, tz_gfx_device_params* device_config)
+
+
+#define TZ_GFX_CREATE_DEVICE(name) void name(tz_gfx_device_params* device_config)
 typedef TZ_GFX_CREATE_DEVICE(tz_create_device_f);
-tz_gfx_device* tz_create_device(tz_gfx_device_params* device_config);
+void tz_gfx_init(tz_gfx_device_params* device_config);
 
-#define TZ_GFX_DELETE_DEVICE(name) void name(tz_gfx_device* device)
+#define TZ_GFX_DELETE_DEVICE(name) void name()
 typedef TZ_GFX_DELETE_DEVICE(tz_delete_device_f);
-TZ_GFX_DELETE_DEVICE(tz_delete_device);
+void tz_gfx_destroy();
 
-#define TZ_GFX_CREATE_SHADER(name) tz_shader name(tz_gfx_device* device, const tz_shader_params* shader_create_info)
+#define TZ_GFX_CREATE_SHADER(name) tz_shader name(const tz_shader_params* shader_create_info)
 typedef TZ_GFX_CREATE_SHADER(tz_create_shader_f);
-TZ_GFX_CREATE_SHADER(tz_create_shader);
+extern tz_create_shader_f* tz_create_shader;
 
-#define TZ_GFX_DELETE_SHADER(name) void name(tz_gfx_device* device, tz_shader shader)
+#define TZ_GFX_DELETE_SHADER(name) void name(tz_shader shader)
 typedef TZ_GFX_DELETE_SHADER(tz_delete_shader_f);
-TZ_GFX_DELETE_SHADER(tz_delete_shader);
+extern tz_delete_shader_f* tz_delete_shader;
 
-#define TZ_GFX_CREATE_BUFFER(name) tz_buffer name(tz_gfx_device* device, const tz_buffer_params* buffer_create_info)
+#define TZ_GFX_CREATE_BUFFER(name) tz_buffer name(const tz_buffer_params* buffer_create_info)
 typedef TZ_GFX_CREATE_BUFFER(tz_create_buffer_f);
-TZ_GFX_CREATE_BUFFER(tz_create_buffer);
+extern tz_create_buffer_f* tz_create_buffer;
 
-#define TZ_GFX_DELETE_BUFFER(name) void name(tz_gfx_device* device, tz_buffer buffer)
+#define TZ_GFX_DELETE_BUFFER(name) void name(tz_buffer buffer)
 typedef TZ_GFX_DELETE_BUFFER(tz_delete_buffer_f);
-TZ_GFX_DELETE_BUFFER(tz_delete_buffer);
+extern tz_delete_buffer_f* tz_delete_buffer;
 
-#define TZ_GFX_CREATE_PIPELINE(name) tz_pipeline name(tz_gfx_device* device, const tz_pipeline_params* pipeline_create_info)
+#define TZ_GFX_CREATE_PIPELINE(name) tz_pipeline name(const tz_pipeline_params* pipeline_create_info)
 typedef TZ_GFX_CREATE_PIPELINE(tz_create_pipeline_f);
-TZ_GFX_CREATE_PIPELINE(tz_create_pipeline);
+extern tz_create_pipeline_f* tz_create_pipeline;
 
-#define TZ_GFX_DELETE_PIPELINE(name) void name(tz_gfx_device* device, tz_pipeline pipeline)
+#define TZ_GFX_DELETE_PIPELINE(name) void name(tz_pipeline pipeline)
 typedef TZ_GFX_DELETE_PIPELINE(tz_delete_pipeline_f);
-TZ_GFX_DELETE_PIPELINE(tz_delete_pipeline);
+extern tz_delete_pipeline_f* tz_delete_pipeline;
 
-#define TZ_GFX_EXECUTE_DRAW_GROUPS(name) void name(tz_gfx_device* device, tz_draw_group* draw_groups, size_t num_draw_groups)
+#define TZ_GFX_EXECUTE_DRAW_GROUPS(name) void name(tz_draw_group* draw_groups, size_t num_draw_groups)
 typedef TZ_GFX_EXECUTE_DRAW_GROUPS(tz_execute_draw_groups_f);
-TZ_GFX_EXECUTE_DRAW_GROUPS(tz_execute_draw_groups);
+extern tz_execute_draw_groups_f* tz_execute_draw_groups;
 #endif 

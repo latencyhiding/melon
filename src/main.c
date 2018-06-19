@@ -95,7 +95,7 @@ int main(int argc, char ** argv)
 
   glfwSetKeyCallback(window, key_callback);
 
-  tz_gfx_device* device = tz_create_device(NULL);
+  tz_gfx_init(NULL);
 
   const char* vertex_source = load_text_file("../assets/shaders/passthrough.vert");
   TZ_ASSERT(vertex_source);
@@ -114,7 +114,7 @@ int main(int argc, char ** argv)
         .size = strlen(fragment_source)
     }
   };
-  tz_shader shader_program = tz_create_shader(device, &shader_params);
+  tz_shader shader_program = tz_create_shader(&shader_params);
 
   free((void*) vertex_source);
   free((void*) fragment_source);
@@ -130,7 +130,7 @@ int main(int argc, char ** argv)
       .size = sizeof(vertices),
       .usage = TZ_STATIC_BUFFER
   };
-  tz_buffer vertex_buffer = tz_create_buffer(device, &buffer_params);
+  tz_buffer vertex_buffer = tz_create_buffer(&buffer_params);
 
   tz_pipeline_params pipeline_params = (tz_pipeline_params) {
     .vertex_attribs = {
@@ -145,7 +145,7 @@ int main(int argc, char ** argv)
     },
       .shader_program = shader_program
   };
-  tz_pipeline pipeline = tz_create_pipeline(device, &pipeline_params);
+  tz_pipeline pipeline = tz_create_pipeline(&pipeline_params);
 
   tz_draw_call_params draw_calls = (tz_draw_call_params) {
     .draw_type = TZ_TRIANGLES,
@@ -171,15 +171,16 @@ int main(int argc, char ** argv)
     glfwPollEvents();
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    tz_execute_draw_groups(device, &draw_group, 1);
+    tz_execute_draw_groups(&draw_group, 1);
     glCheckError();
 
     glfwSwapBuffers(window);
   }
 
-  tz_delete_shader(device, shader_program);
-  tz_delete_pipeline(device, pipeline);
-  tz_delete_device(device);
+  tz_delete_shader(shader_program);
+  tz_delete_pipeline(pipeline);
+
+  tz_gfx_destroy();
 
   return 0;
 }

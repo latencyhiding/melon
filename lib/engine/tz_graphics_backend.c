@@ -4,36 +4,29 @@
 #include <stdint.h>
 #include <tinycthread.h>
 
-typedef struct
-{
-  tz_create_device_f* create_device;
-  tz_delete_device_f* delete_device;
+tz_create_device_f* tz_api_create_device;
+tz_delete_device_f* tz_api_delete_device;
 
-  tz_create_shader_f* create_shader;
-  tz_delete_shader_f* delete_shader;
+tz_create_shader_f* tz_create_shader;
+tz_delete_shader_f* tz_delete_shader;
 
-  tz_create_buffer_f* create_buffer;
-  tz_delete_buffer_f* delete_buffer;
+tz_create_buffer_f* tz_create_buffer;
+tz_delete_buffer_f* tz_delete_buffer;
 
-  tz_create_pipeline_f* create_pipeline;
-  tz_delete_pipeline_f* delete_pipeline;
+tz_create_pipeline_f* tz_create_pipeline;
+tz_delete_pipeline_f* tz_delete_pipeline;
 
-  tz_execute_draw_groups_f* execute_draw_groups;
-} tz_gfx_device_api;
+tz_execute_draw_groups_f* tz_execute_draw_groups;
+
+tz_gfx_handle tz_gfx_invalid_handle;
 
 struct tz_gfx_device
 {
-  tz_pool shader_pool;
-  tz_pool buffer_pool;
-  tz_pool pipeline_pool;
-  tz_pool command_buffer_pool;
-
   tz_gfx_device_resource_count resource_count;
   tz_allocator allocator;
-
-  void* backend_data;
-  tz_gfx_device_api api;
 };
+
+static tz_gfx_device g_device;
 
 static size_t tz_vertex_data_type_bytes(tz_vertex_data_type type)
 {
@@ -203,6 +196,8 @@ void tz_cb_reset(_tz_command_buffer *cb)
 ////////////////////////////////////////////////////////////////////////////////
 
 #include <glad/glad.h>
+#define TZ_GL_INVALID_ID 0
+#define TZ_GL_HANDLE(handle) ((GLuint) handle.data)
 
 typedef struct
 {
@@ -222,14 +217,15 @@ typedef struct
   size_t stride;
 } tz_pipeline_gl;
 
+TZ_POOL_VECTOR(gl_pipeline, tz_pipeline_gl)
+
 typedef struct
 {
-  GLuint *shader_programs;
-  GLuint *buffers;
-  tz_pipeline_gl *pipelines;
-
+  tz_gl_pipeline_pool pipelines;
   GLuint dummy_vao;
 } tz_gfx_device_gl;
+
+static tz_gfx_device_gl g_device_gl;
 
 static GLenum gl_buffer_usage(tz_buffer_usage usage)
 {
@@ -273,29 +269,19 @@ static GLenum gl_data_format(tz_vertex_data_type type)
 
 TZ_GFX_CREATE_DEVICE(tz_create_device_gl3)
 {
-  size_t total_size = sizeof(tz_gfx_device_gl) + TZ_DEFAULT_ALIGN + device_config->resource_count.max_shaders * sizeof(GLuint) + TZ_DEFAULT_ALIGN + device_config->resource_count.max_buffers * sizeof(GLuint) + TZ_DEFAULT_ALIGN + device_config->resource_count.max_pipelines * sizeof(tz_pipeline) + TZ_DEFAULT_ALIGN;
+  tz_create_gl_pipeline_pool(&g_device_gl.pipelines, device_config->resource_count.max_pipelines, device_config->allocator); 
+  g_device_gl.dummy_vao = 0;
 
-  tz_gfx_device_gl *device_gl = (tz_gfx_device_gl *)TZ_ALLOC((*(device_config->allocator)), total_size, TZ_DEFAULT_ALIGN);
-  device_gl->shader_programs = (GLuint *)tz_align_forward(device_gl + 1, TZ_DEFAULT_ALIGN);
-  device_gl->buffers = (GLuint *)tz_align_forward(device_gl->shader_programs + sizeof(GLuint) * device_config->resource_count.max_shaders, TZ_DEFAULT_ALIGN);
-  device_gl->pipelines = (tz_pipeline_gl *)tz_align_forward(device_gl->buffers + sizeof(GLuint) * device_config->resource_count.max_buffers, TZ_DEFAULT_ALIGN);
-  device_gl->dummy_vao = 0;
-
-  device->backend_data = device_gl;
-
-  glGenVertexArrays(1, &device_gl->dummy_vao);
-  glBindVertexArray(device_gl->dummy_vao);
+  glGenVertexArrays(1, &g_device_gl.dummy_vao);
+  glBindVertexArray(g_device_gl.dummy_vao);
 }
 
 TZ_GFX_DELETE_DEVICE(tz_delete_device_gl3)
 {
-  tz_gfx_device_gl *device_gl = (tz_gfx_device_gl *)device->backend_data;
-  glDeleteVertexArrays(1, &device_gl->dummy_vao);
-
-  TZ_FREE(device->allocator, device_gl);
+  glDeleteVertexArrays(1, &g_device_gl.dummy_vao);
 }
 
-static GLuint compile_shader(tz_gfx_device *device, GLenum type, const tz_shader_stage_params *shader_stage_create_info)
+static GLuint compile_shader(const tz_allocator* allocator, GLenum type, const tz_shader_stage_params *shader_stage_create_info)
 {
   if (!shader_stage_create_info->source)
     return 0;
@@ -315,12 +301,12 @@ static GLuint compile_shader(tz_gfx_device *device, GLenum type, const tz_shader
     GLint len = 0;
     glGetShaderiv(shader_stage, GL_INFO_LOG_LENGTH, &len);
 
-    char *error_buffer = TZ_ALLOC(device->allocator, sizeof(char) * len, TZ_DEFAULT_ALIGN);
+    char *error_buffer = TZ_ALLOC((*allocator), sizeof(char) * len, TZ_DEFAULT_ALIGN);
     glGetShaderInfoLog(shader_stage, len, &len, error_buffer);
 
     TZ_LOG("Shader compilation error in %s: %s\n", shader_stage_create_info->name, error_buffer);
 
-    TZ_FREE(device->allocator, error_buffer);
+    TZ_FREE((*allocator), error_buffer);
     glDeleteShader(shader_stage);
 
     // Return invalid id if error
@@ -333,11 +319,10 @@ static GLuint compile_shader(tz_gfx_device *device, GLenum type, const tz_shader
 
 TZ_GFX_CREATE_SHADER(tz_create_shader_gl3)
 {
-  tz_gfx_device_gl *device_gl = (tz_gfx_device_gl *)device->backend_data;
-  tz_shader shader_id = TZ_INVALID_ID(tz_shader);
+  tz_shader shader_id = { TZ_GL_INVALID_ID };
 
-  GLuint vertex_shader = compile_shader(device, GL_VERTEX_SHADER, &shader_create_info->vertex_shader);
-  GLuint fragment_shader = compile_shader(device, GL_FRAGMENT_SHADER, &shader_create_info->fragment_shader);
+  GLuint vertex_shader = compile_shader(&g_device.allocator, GL_VERTEX_SHADER, &shader_create_info->vertex_shader);
+  GLuint fragment_shader = compile_shader(&g_device.allocator, GL_FRAGMENT_SHADER, &shader_create_info->fragment_shader);
 
   if (!vertex_shader || !fragment_shader)
   {
@@ -358,12 +343,12 @@ TZ_GFX_CREATE_SHADER(tz_create_shader_gl3)
     GLint len = 0;
     glGetProgramiv(program, GL_INFO_LOG_LENGTH, &len);
 
-    char *error_buffer = TZ_ALLOC(device->allocator, sizeof(char) * len, TZ_DEFAULT_ALIGN);
+    char *error_buffer = TZ_ALLOC(g_device.allocator, sizeof(char) * len, TZ_DEFAULT_ALIGN);
     glGetProgramInfoLog(program, len, &len, error_buffer);
 
     TZ_LOG("Shader linking error: %s\n", error_buffer);
 
-    TZ_FREE(device->allocator, error_buffer);
+    TZ_FREE(g_device.allocator, error_buffer);
     glDeleteProgram(program);
     glDeleteShader(vertex_shader);
     glDeleteShader(fragment_shader);
@@ -379,32 +364,19 @@ TZ_GFX_CREATE_SHADER(tz_create_shader_gl3)
 
   TZ_LOG("Shader successfully compiled and linked using %s and %s\n", shader_create_info->vertex_shader.name, shader_create_info->fragment_shader.name);
 
-  shader_id = tz_shader_id_create(&device->shader_pool);
-
-  if (!tz_pool_id_is_valid(&device->shader_pool, shader_id.id))
-    return shader_id;
-
-  device_gl->shader_programs[shader_id.id.index] = program;
+  shader_id = (tz_shader) { program };
 
   return shader_id;
 }
 
 TZ_GFX_DELETE_SHADER(tz_delete_shader_gl3)
 {
-  if (!tz_shader_id_delete(&device->shader_pool, shader))
-  {
-    TZ_LOG("Shader deletion error: invalid ID.\n");
-    return;
-  }
-  tz_gfx_device_gl *device_gl = (tz_gfx_device_gl *)device->backend_data;
-
-  glDeleteProgram(device_gl->shader_programs[shader.id.index]);
+  glDeleteProgram((GLuint) shader.data);
 }
 
 TZ_GFX_CREATE_BUFFER(tz_create_buffer_gl3)
 {
-  tz_gfx_device_gl *device_gl = (tz_gfx_device_gl *)device->backend_data;
-  tz_buffer buffer_id = TZ_INVALID_ID(tz_buffer);
+  tz_buffer buffer_id = { TZ_GL_INVALID_ID };
 
   GLuint buf = 0;
   GLenum binding = GL_ARRAY_BUFFER; // This is set to GL_ARRAY_BUFFER because at this stage the binding doesn't matter. This is just to get the buffer bound.
@@ -420,15 +392,7 @@ TZ_GFX_CREATE_BUFFER(tz_create_buffer_gl3)
     return buffer_id;
   }
 
-  buffer_id = tz_buffer_id_create(&device->buffer_pool);
-
-  if (!tz_pool_id_is_valid(&device->buffer_pool, buffer_id.id))
-  {
-    TZ_LOG("Buffer creation error: could not create ID. The pool may be full.\n");
-    return buffer_id;
-  }
-
-  device_gl->buffers[buffer_id.id.index] = buf;
+  buffer_id = (tz_buffer) { buf };
 
   glBindBuffer(binding, 0);
 
@@ -437,28 +401,17 @@ TZ_GFX_CREATE_BUFFER(tz_create_buffer_gl3)
 
 TZ_GFX_DELETE_BUFFER(tz_delete_buffer_gl3)
 {
-  if (!tz_buffer_id_delete(&device->buffer_pool, buffer))
-  {
-    TZ_LOG("Buffer deletion error: invalid ID.\n");
-    return;
-  }
-
-  tz_gfx_device_gl *device_gl = (tz_gfx_device_gl *)device->backend_data;
-  glDeleteBuffers(1, &(device_gl->buffers[buffer.id.index]));
+  GLuint handle = (GLuint) buffer.data;
+  glDeleteBuffers(1, &handle);
 }
 
 TZ_GFX_CREATE_PIPELINE(tz_create_pipeline_gl3)
 {
-  tz_gfx_device_gl *device_gl = (tz_gfx_device_gl *)device->backend_data;
-  tz_pipeline pipeline_id = tz_pipeline_id_create(&device->pipeline_pool);
-
-  TZ_ASSERT(tz_pool_id_is_valid(&device->shader_pool, pipeline_create_info->shader_program.id), "Pipeline creation error: shader program ID invalid.");
-
   tz_pipeline_gl new_pipeline = {0};
   new_pipeline.shader_program = pipeline_create_info->shader_program;
 
   //TODO: Pipeline validation, dummy draw call
-  GLuint gl_program = device_gl->shader_programs[new_pipeline.shader_program.id.index];
+  GLuint gl_program = TZ_GL_HANDLE(new_pipeline.shader_program);
 
   size_t packed_stride = 0;
   for (size_t attrib_index = 0, gl_attrib_index = 0; attrib_index < TZ_MAX_ATTRIBUTES && gl_attrib_index < TZ_MAX_ATTRIBUTES; attrib_index++, gl_attrib_index++)
@@ -496,23 +449,18 @@ TZ_GFX_CREATE_PIPELINE(tz_create_pipeline_gl3)
   else
     new_pipeline.stride = pipeline_create_info->stride;
 
-  device_gl->pipelines[pipeline_id.id.index] = new_pipeline;
-
-  return pipeline_id;
+  return (tz_pipeline) { tz_gl_pipeline_pool_push(&g_device_gl.pipelines, new_pipeline) };
 }
 
 TZ_GFX_DELETE_PIPELINE(tz_delete_pipeline_gl3)
 {
-  if (!tz_pipeline_id_delete(&device->pipeline_pool, pipeline))
+  if (!tz_gl_pipeline_pool_delete(&g_device_gl.pipelines, pipeline.data))
     TZ_LOG("Pipeline deletion error: invalid ID.\n");
 }
 
-static void gl3_clear_pipeline(tz_gfx_device *device, tz_pipeline pipeline_id)
+static void gl3_clear_pipeline(tz_pipeline pipeline_id)
 {
-  if (pipeline_id.data == 0)
-    return;
-  tz_gfx_device_gl *device_gl = (tz_gfx_device_gl *)device->backend_data;
-  tz_pipeline_gl *pipeline_gl = &device_gl->pipelines[pipeline_id.id.index];
+  tz_pipeline_gl* pipeline_gl = tz_gl_pipeline_pool_get_p(&g_device_gl.pipelines, pipeline_id.data);
 
   for (size_t attrib_index = 0; attrib_index < pipeline_gl->num_attribs; attrib_index++)
   {
@@ -523,28 +471,26 @@ static void gl3_clear_pipeline(tz_gfx_device *device, tz_pipeline pipeline_id)
   glUseProgram(0);
 }
 
-static void gl3_bind_pipeline(tz_gfx_device *device, tz_draw_state *current_draw_state, const tz_pipeline pipeline_id)
+static void gl3_bind_pipeline(tz_draw_state *current_draw_state, const tz_pipeline pipeline_id)
 {
-  tz_gfx_device_gl *device_gl = (tz_gfx_device_gl *)device->backend_data;
-  tz_pipeline_gl *pipeline_gl = &device_gl->pipelines[pipeline_id.id.index];
+  tz_pipeline_gl* pipeline_gl = tz_gl_pipeline_pool_get_p(&g_device_gl.pipelines, pipeline_id.data);
   if (current_draw_state->pipeline.data != pipeline_id.data)
   {
     current_draw_state->pipeline = pipeline_id;
-    gl3_clear_pipeline(device, pipeline_id);
+    gl3_clear_pipeline(pipeline_id);
 
-    TZ_ASSERT(tz_shader_id_is_valid(&device->shader_pool, pipeline_gl->shader_program),
+    TZ_ASSERT(TZ_GFX_HANDLE_IS_VALID(pipeline_gl->shader_program),
               "Pipeline creation error: shader program ID invalid.");
-    GLuint shader_program = device_gl->shader_programs[pipeline_gl->shader_program.id.index];
+    GLuint shader_program = TZ_GL_HANDLE(pipeline_gl->shader_program);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glUseProgram(shader_program);
   }
 }
 
-static void gl3_bind_resources(tz_gfx_device *device, tz_pipeline pipeline_id, tz_draw_state *current_draw_state, const tz_draw_resources *draw_resources)
+static void gl3_bind_resources(tz_pipeline pipeline_id, tz_draw_state *current_draw_state, const tz_draw_resources *draw_resources)
 {
-  tz_gfx_device_gl *device_gl = (tz_gfx_device_gl *)device->backend_data;
-  tz_pipeline_gl *pipeline_gl = &device_gl->pipelines[pipeline_id.id.index];
+  tz_pipeline_gl* pipeline_gl = tz_gl_pipeline_pool_get_p(&g_device_gl.pipelines, pipeline_id.data);
 
   for (size_t attrib_index = 0; attrib_index < pipeline_gl->num_attribs; attrib_index++)
   {
@@ -552,7 +498,7 @@ static void gl3_bind_resources(tz_gfx_device *device, tz_pipeline pipeline_id, t
     tz_vertex_attrib_gl *attrib = &pipeline_gl->attribs[attrib_index];
 
     tz_buffer buffer = draw_resources->buffers[attrib->buffer_binding];
-    TZ_ASSERT(tz_buffer_id_is_valid(&device->buffer_pool, buffer),
+    TZ_ASSERT(TZ_GFX_HANDLE_IS_VALID(buffer),
               "Buffer at binding %lu was invalid", attrib->buffer_binding);
 
     if (current_draw_state->resources.buffers[attrib->buffer_binding].data == buffer.data)
@@ -560,9 +506,9 @@ static void gl3_bind_resources(tz_gfx_device *device, tz_pipeline pipeline_id, t
 
     current_draw_state->resources.buffers[attrib->buffer_binding] = buffer;
 
-    if (current_buffer != device_gl->buffers[buffer.id.index])
+    if (current_buffer != TZ_GL_HANDLE(buffer))
     {
-      current_buffer = device_gl->buffers[buffer.id.index];
+      current_buffer = TZ_GL_HANDLE(buffer);
       glBindBuffer(GL_ARRAY_BUFFER, current_buffer);
     }
 
@@ -576,12 +522,12 @@ static void gl3_bind_resources(tz_gfx_device *device, tz_pipeline pipeline_id, t
     glEnableVertexAttribArray(attrib->location);
   }
 
-  if (current_draw_state->resources.index_buffer.data != draw_resources->index_buffer.data && tz_pool_id_is_valid(&device->buffer_pool, current_draw_state->resources.index_buffer.id))
+  if (current_draw_state->resources.index_buffer.data != draw_resources->index_buffer.data && TZ_GFX_HANDLE_IS_VALID(current_draw_state->resources.index_buffer))
   {
     current_draw_state->resources.index_buffer = draw_resources->index_buffer;
     current_draw_state->resources.index_type = draw_resources->index_type;
 
-    GLuint index_buffer = device_gl->buffers[current_draw_state->resources.index_buffer.id.index];
+    GLuint index_buffer = TZ_GL_HANDLE(current_draw_state->resources.index_buffer);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer);
   }
 }
@@ -605,26 +551,24 @@ static GLenum gl_draw_type(tz_draw_type type)
 // everything in a command buffer
 TZ_GFX_EXECUTE_DRAW_GROUPS(tz_execute_draw_groups_gl3)
 {
-  tz_gfx_device_gl *device_gl = (tz_gfx_device_gl *)device->backend_data;
-
   tz_draw_state current_draw_state = {0};
   for (size_t i = 0; i < num_draw_groups; i++)
   {
     tz_pipeline pipeline = draw_groups[i].pipeline;
     const tz_draw_resources *resources = &draw_groups[i].resources;
 
-    TZ_ASSERT(tz_pipeline_id_is_valid(&device->pipeline_pool, pipeline),
+    TZ_ASSERT(tz_gl_pipeline_pool_index_is_valid(&g_device_gl.pipelines, pipeline.data),
               "Pipeline binding error: pipeline ID invalid.");
 
-    gl3_bind_pipeline(device, &current_draw_state, pipeline);
+    gl3_bind_pipeline(&current_draw_state, pipeline);
 
     const tz_draw_group *draw_group = &draw_groups[i];
     for (size_t j = 0; j < draw_group->num_draw_calls; j++)
     {
       const tz_draw_call_params *draw_call = &(draw_group->draw_calls[j]);
-      gl3_bind_resources(device, pipeline, &current_draw_state, resources);
+      gl3_bind_resources(pipeline, &current_draw_state, resources);
 
-      if (tz_pool_id_is_valid(&device->buffer_pool, resources->index_buffer.id))
+      if (TZ_GFX_HANDLE_IS_VALID(resources->index_buffer))
       {
         glDrawElementsInstancedBaseVertex(gl_draw_type(draw_call->draw_type),
                                           draw_call->num_vertices,
@@ -642,23 +586,8 @@ TZ_GFX_EXECUTE_DRAW_GROUPS(tz_execute_draw_groups_gl3)
       }
     }
   }
-  gl3_clear_pipeline(device, current_draw_state.pipeline);
+  gl3_clear_pipeline(current_draw_state.pipeline);
 }
-
-tz_gfx_device_api opengl3_api = {
-    .create_device = tz_create_device_gl3,
-    .delete_device = tz_delete_device_gl3,
-
-    .create_shader = tz_create_shader_gl3,
-    .delete_shader = tz_delete_shader_gl3,
-
-    .create_buffer = tz_create_buffer_gl3,
-    .delete_buffer = tz_delete_buffer_gl3,
-
-    .create_pipeline = tz_create_pipeline_gl3,
-    .delete_pipeline = tz_delete_pipeline_gl3,
-
-    .execute_draw_groups = tz_execute_draw_groups_gl3};
 
 ////////////////////////////////////////////////////////////////////////////////
 // TZ GFX
@@ -674,10 +603,11 @@ tz_gfx_device_params tz_default_gfx_device_params()
           .max_command_buffers = 256 
       },
       .allocator = tz_default_cb_allocator(),
-      .graphics_api = OPENGL3};
+      .graphics_api = OPENGL3
+    };
 }
 
-tz_gfx_device *tz_create_device(tz_gfx_device_params *device_config)
+void tz_gfx_init(tz_gfx_device_params *device_config)
 {
   if (device_config == NULL)
   {
@@ -688,70 +618,34 @@ tz_gfx_device *tz_create_device(tz_gfx_device_params *device_config)
 
   device_config->allocator = device_config->allocator ? device_config->allocator : tz_default_cb_allocator();
 
-  tz_gfx_device *device = TZ_ALLOC((*(device_config->allocator)), sizeof(tz_gfx_device), TZ_DEFAULT_ALIGN);
-  device->allocator = *(device_config->allocator);
-  device->resource_count = device_config->resource_count;
-
-  tz_create_pool(&device->shader_pool, device_config->resource_count.max_shaders, device_config->allocator);
-  tz_create_pool(&device->buffer_pool, device_config->resource_count.max_buffers, device_config->allocator);
-  tz_create_pool(&device->pipeline_pool, device_config->resource_count.max_pipelines, device_config->allocator);
-  tz_create_pool(&device->command_buffer_pool, device_config->resource_count.max_command_buffers, device_config->allocator);
+  g_device.allocator = *(device_config->allocator);
+  g_device.resource_count = device_config->resource_count;
 
   switch (device_config->graphics_api)
   {
   case OPENGL3:
-    device->api = opengl3_api;
-  default:
-    device->api = opengl3_api;
+    tz_api_create_device = tz_create_device_gl3;
+    tz_api_delete_device = tz_delete_device_gl3;
+
+    tz_create_shader = tz_create_shader_gl3;
+    tz_delete_shader = tz_delete_shader_gl3;
+
+    tz_create_buffer = tz_create_buffer_gl3;
+    tz_delete_buffer = tz_delete_buffer_gl3;
+
+    tz_create_pipeline = tz_create_pipeline_gl3;
+    tz_delete_pipeline = tz_delete_pipeline_gl3;
+
+    tz_execute_draw_groups = tz_execute_draw_groups_gl3;
+
+    tz_gfx_invalid_handle = TZ_GL_INVALID_ID;
+    break;
   }
 
-  device->api.create_device(device, device_config);
-
-  return device;
+  tz_api_create_device(device_config);
 }
 
-TZ_GFX_DELETE_DEVICE(tz_delete_device)
+void tz_gfx_destroy()
 {
-  device->api.delete_device(device);
-
-  tz_delete_pool(&(device->shader_pool));
-  tz_delete_pool(&(device->buffer_pool));
-  tz_delete_pool(&(device->pipeline_pool));
-
-  TZ_FREE(device->allocator, device);
-}
-
-TZ_GFX_CREATE_SHADER(tz_create_shader)
-{
-  return device->api.create_shader(device, shader_create_info);
-}
-
-TZ_GFX_DELETE_SHADER(tz_delete_shader)
-{
-  device->api.delete_shader(device, shader);
-}
-
-TZ_GFX_CREATE_BUFFER(tz_create_buffer)
-{
-  return device->api.create_buffer(device, buffer_create_info);
-}
-
-TZ_GFX_DELETE_BUFFER(tz_delete_buffer)
-{
-  device->api.delete_buffer(device, buffer);
-}
-
-TZ_GFX_CREATE_PIPELINE(tz_create_pipeline)
-{
-  return device->api.create_pipeline(device, pipeline_create_info);
-}
-
-TZ_GFX_DELETE_PIPELINE(tz_delete_pipeline)
-{
-  device->api.delete_pipeline(device, pipeline);
-}
-
-TZ_GFX_EXECUTE_DRAW_GROUPS(tz_execute_draw_groups)
-{
-  device->api.execute_draw_groups(device, draw_groups, num_draw_groups);
+  tz_api_delete_device();
 }

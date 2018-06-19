@@ -1,4 +1,5 @@
 #include "tz_core.h"
+#include <string.h>
 
 ////////////////////////////////////////////////////////////////////////////////
 // Default memory allocation callbacks
@@ -148,86 +149,111 @@ tz_cb_logger tz_logger_callback = tz_default_logger;
 void tz_create_pool(tz_pool* pool, size_t capacity, const tz_allocator* allocator)
 {
   pool->allocator = *allocator;
-  pool->free_indices = (uint32_t*)TZ_ALLOC(pool->allocator, sizeof(uint32_t) * capacity, TZ_DEFAULT_ALIGN);
-  pool->generations = (uint8_t*)TZ_ALLOC(pool->allocator, sizeof(uint8_t) * capacity, TZ_DEFAULT_ALIGN);
+  pool->free_indices = (size_t*)TZ_ALLOC(pool->allocator, sizeof(size_t) * capacity, TZ_DEFAULT_ALIGN);
   pool->capacity = capacity;
   pool->num_free_indices = capacity;
 
   for (size_t i = 0; i < capacity; i++)
     pool->free_indices[capacity - 1 - i] = i;
-
-  for (size_t i = 0; i < capacity; i++)
-    pool->generations[i] = 0;
 }
 
 void tz_delete_pool(tz_pool* pool)
 {
   TZ_FREE(pool->allocator, pool->free_indices);
-  TZ_FREE(pool->allocator, pool->generations);
 }
 
-tz_pool_id tz_pool_create_id(tz_pool* pool)
+tz_pool_index tz_pool_create_index(tz_pool* pool)
 {
-  tz_pool_id new_id = tz_pool_gen_invalid_id();
+  tz_pool_index new_index = tz_pool_gen_invalid_index();
 
   uint32_t index;
-  uint8_t generation;
 
   // Pop free indices off the stack until one with a valid generation is found
-  do
+  if (pool->num_free_indices == 0)
   {
-    if (pool->num_free_indices == 0)
-    {
-      // Reallocate
-      size_t new_capacity = pool->capacity * 2;
-      pool->free_indices = TZ_REALLOC(pool->allocator, pool->free_indices, new_capacity, TZ_DEFAULT_ALIGN);
-      pool->generations = TZ_REALLOC(pool->allocator, pool->generations, new_capacity, TZ_DEFAULT_ALIGN);
+    // Reallocate
+    size_t new_capacity = pool->capacity * 2;
+    pool->free_indices = TZ_REALLOC(pool->allocator, pool->free_indices, sizeof(size_t) * new_capacity, TZ_DEFAULT_ALIGN);
 
-      for (size_t i = 0; i < new_capacity; i++)
-        pool->free_indices[i] = new_capacity - 1 - i; 
+    for (size_t i = pool->capacity; i < new_capacity; i++)
+      pool->free_indices[i - pool->capacity] = new_capacity - 1 - i;
 
-      for (size_t i = pool->capacity; i < new_capacity; i++)
-        pool->generations[i] = 0; 
+    pool->capacity = new_capacity;
+    pool->num_free_indices = new_capacity;
+  }
 
-      pool->capacity = new_capacity;
-      pool->num_free_indices = new_capacity;
-    }
+  index = pool->free_indices[--pool->num_free_indices];
 
-    index = pool->free_indices[--pool->num_free_indices];
-    generation = pool->generations[index];
-  } while (generation >= TZ_POOL_MAX_GENERATION);
+  new_index = index;
 
-  new_id._initialized = true;
-  new_id.index = index;
-  new_id.generation = generation;
-
-  return new_id;
+  return new_index;
 }
 
-bool tz_pool_id_is_valid(tz_pool* pool, tz_pool_id id)
+bool tz_pool_index_is_valid(tz_pool *pool, tz_pool_index index)
 {
-  return id._initialized
-    && (id.generation == pool->generations[id.index])
-    && (id.index < pool->capacity);
+  return (index < pool->capacity);
 }
 
-tz_pool_id tz_pool_gen_invalid_id()
+tz_pool_index tz_pool_gen_invalid_index()
 {
-  return (tz_pool_id) { 0 };
+  return (tz_pool_index){0};
 }
 
-bool tz_pool_delete_id(tz_pool* pool, tz_pool_id id)
+bool tz_pool_delete_index(tz_pool *pool, tz_pool_index index)
 {
-  if (!tz_pool_id_is_valid(pool, id))
+  if (!tz_pool_index_is_valid(pool, index))
     return false;
 
   // if the number of free indices >= the capacity, the pool is empty
   if (pool->num_free_indices >= pool->capacity)
     return false;
 
-  pool->free_indices[pool->num_free_indices++] = id.index;
-  pool->generations[id.index]++;
+#ifdef TZ_DEBUG
+  for (size_t i = 0; i < pool->num_free_indices; i++)
+    TZ_ASSERT(pool->free_indices[i] != index, "Cannot double free indices\n");
+#endif
 
+  pool->free_indices[pool->num_free_indices++] = index;
   return true;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// tz_pool_vector - a vector that uses an id pool for access
+////////////////////////////////////////////////////////////////////////////////
+
+void tz_create_pool_vector(tz_pool_vector *pv, size_t capacity, size_t element_size, const tz_allocator *allocator)
+{
+  pv->allocator = *allocator;
+  pv->capacity = capacity;
+  pv->element_size = element_size;
+
+  tz_create_pool(&pv->pool, capacity, allocator);
+  pv->data = TZ_ALLOC(pv->allocator, capacity * element_size, element_size);
+}
+
+void tz_delete_pool_vector(tz_pool_vector *pv)
+{
+  tz_delete_pool(&pv->pool);
+  TZ_FREE(pv->allocator, pv->data);
+}
+
+tz_pool_index tz_pool_vector_push(tz_pool_vector *pv, void *val)
+{
+  tz_pool_index index = tz_pool_create_index(&pv->pool);
+
+  if (index < pv->capacity)
+  {
+    memcpy((uint8_t *)pv->data + pv->element_size * index, val, pv->element_size);
+    return index;
+  }
+
+  size_t new_capacity = pv->capacity * 2;
+
+  while (new_capacity <= index)
+    new_capacity *= 2;
+
+  pv->data = TZ_REALLOC(pv->allocator, pv->data, new_capacity, pv->element_size);
+  memcpy((uint8_t *)pv->data + pv->element_size * index, val, pv->element_size);
+
+  return index;
+}
