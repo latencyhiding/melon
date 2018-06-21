@@ -1,10 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-set(APP_NAME graphics_test)
-project(${APP_NAME} C)
-
-set(SOURCES src/main.c)
+project(${APP_NAME} CXX)
 
 set(CMAKE_C_FLAGS_DEBUG "-DTZ_DEBUG")
 
@@ -44,23 +41,18 @@ include_directories(thirdparty)
 
 ## libs
 set(CMAKE_CXX_FLAGS_DEBUG  "-g")
-include_directories(lib)
 # engine lib
-set(LIB_NAME engine)
+set(LIB_NAME melon)
+include_directories(include)
 add_library(${LIB_NAME} STATIC
-                        lib/engine/tz_core.c
-                        lib/engine/tz_graphics_backend.c)
+                        src/core.cpp
+                        src/gfx.cpp)
 set_property(TARGET ${LIB_NAME} PROPERTY C_STANDARD 99)
 set_property(TARGET ${LIB_NAME} PROPERTY C_STANDARD_REQUIRED ON)
 
+## define lib names
+set(LIBS ${OPENGL_LIBRARIES} ${LIB_NAME} glfw glad tinycthread header_only_impls)
 ## tests
 enable_testing()
 add_subdirectory(test)
 
-##
-
-add_executable(${APP_NAME} ${SOURCES})
-set_property(TARGET ${APP_NAME} PROPERTY C_STANDARD 99)
-set_property(TARGET ${APP_NAME} PROPERTY C_STANDARD_REQUIRED ON)
-
-target_link_libraries(${APP_NAME} ${OPENGL_LIBRARIES} engine glfw glad tinycthread header_only_impls)

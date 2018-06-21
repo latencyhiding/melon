@@ -1,5 +1,3 @@
-set(LIBS glfw glad header_only_impls engine)
-
 function(create_unit_test TEST_NAME TEST_SOURCES)
   add_executable(${TEST_NAME} ${TEST_SOURCES})
   target_link_libraries(${TEST_NAME} ${LIBS})
@@ -16,3 +14,4 @@ else()
 endif()
 
 create_unit_test(pool_test pool_test.c)
+create_unit_test(gfx_test gfx_test/main.c)

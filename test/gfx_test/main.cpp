@@ -5,8 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <engine/tz_graphics_backend.h>
-#include <engine/tz_error.h>
+#include <melon/gfx.h>
+#include <melon/error.h>
 
 static void error_callback(int error, const char *description)
 {
@@ -97,9 +97,9 @@ int main(int argc, char ** argv)
 
   tz_gfx_init(NULL);
 
-  const char* vertex_source = load_text_file("../assets/shaders/passthrough.vert");
+  const char* vertex_source = load_text_file("../../assets/shaders/passthrough.vert");
   TZ_ASSERT(vertex_source);
-  const char* fragment_source = load_text_file("../assets/shaders/passthrough.frag");
+  const char* fragment_source = load_text_file("../../assets/shaders/passthrough.frag");
   TZ_ASSERT(fragment_source);
 
   tz_shader_params shader_params = (tz_shader_params) {
