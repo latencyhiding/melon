@@ -34,7 +34,7 @@ namespace gfx
 ////////////////////////////////////////////////////////////////////////////////
 
 typedef uint64_t handle;
-extern handle invalid_handle;
+extern handle    invalid_handle;
 #define MELON_GFX_HANDLE(name) \
     typedef struct             \
     {                          \
@@ -45,12 +45,12 @@ extern handle invalid_handle;
 /* typesafe wrappers for ids of different kinds of resources
  */
 
-MELON_GFX_HANDLE(buffer);
-MELON_GFX_HANDLE(uniform_block);
-MELON_GFX_HANDLE(texture);
-MELON_GFX_HANDLE(shader);
-MELON_GFX_HANDLE(pipeline);
-MELON_GFX_HANDLE(command_buffer);
+MELON_GFX_HANDLE(buffer_handle);
+MELON_GFX_HANDLE(uniform_block_handle);
+MELON_GFX_HANDLE(texture_handle);
+MELON_GFX_HANDLE(shader_handle);
+MELON_GFX_HANDLE(pipeline_handle);
+MELON_GFX_HANDLE(command_buffer_handle);
 
 // Basic vertex data types
 typedef enum
@@ -67,7 +67,7 @@ typedef enum
 } vertex_data_type;
 
 /* buffer_usage - Enum defining the buffer access patterns
-*/
+ */
 typedef enum
 {
     MELON_STATIC_BUFFER,
@@ -84,18 +84,18 @@ typedef enum
 } draw_type;
 
 /* buffer - Struct defining parameters for buffer creation
-*/
+ */
 typedef struct
 {
-    void *data;
-    size_t size;
+    void*        data;
+    size_t       size;
     buffer_usage usage;
 } buffer_params;
-static inline buffer_params gen_buffer_params() { return (buffer_params){0}; }
+static inline buffer_params gen_buffer_params() { return {}; }
 
-/* vertex_attrib - Struct defining vertex attributes 
+/* vertex_attrib - Struct defining vertex attributes
  *
- * name - name of the attribute binding in the shader 
+ * name - name of the attribute binding in the shader
  * offset - number of bytes from the start of a vertex that an attribute begins
  * type - the data format of the attribute
  * size - number of data components
@@ -106,40 +106,40 @@ static inline buffer_params gen_buffer_params() { return (buffer_params){0}; }
  */
 typedef struct
 {
-    const char *name;
-    size_t buffer_binding;
-    size_t offset;
+    const char*      name;
+    size_t           buffer_binding;
+    size_t           offset;
     vertex_data_type type;
-    int size;
-    int divisor;
+    int              size;
+    int              divisor;
 } vertex_attrib_params;
-static inline vertex_attrib_params gen_vertex_attrib_params() { return (vertex_attrib_params){0}; }
+static inline vertex_attrib_params gen_vertex_attrib_params() { return {}; }
 
 typedef struct
 {
-    const char *name;
-    const char *source;
-    size_t size;
+    const char* name;
+    const char* source;
+    size_t      size;
 } shader_stage_params;
-static inline shader_stage_params gen_shader_stage_params() { return (shader_stage_params){0}; }
+static inline shader_stage_params gen_shader_stage_params() { return {}; }
 
 /* shader - Struct defining a shader
-*/
+ */
 typedef struct
 {
     shader_stage_params vertex_shader;
     shader_stage_params fragment_shader;
 } shader_params;
-static inline shader_params gen_shader_params() { return (shader_params){0}; }
+static inline shader_params gen_shader_params() { return {}; }
 
 typedef struct
 {
     vertex_attrib_params vertex_attribs[MELON_MAX_ATTRIBUTES];
-    size_t stride;
+    size_t               stride;
 
-    shader shader_program;
+    shader_handle shader_program;
 } pipeline_params;
-static inline pipeline_params gen_pipeline_params() { return (pipeline_params){0}; }
+static inline pipeline_params gen_pipeline_params() { return {}; }
 
 typedef enum
 {
@@ -163,28 +163,30 @@ typedef enum
 
 typedef struct
 {
-    buffer buffers[MELON_MAX_BUFFER_ATTACHMENTS];
+    buffer_handle buffers[MELON_MAX_BUFFER_ATTACHMENTS];
 
-    buffer index_buffer;
+    buffer_handle    index_buffer;
     vertex_data_type index_type;
 } draw_resources;
-static inline draw_resources gen_draw_resources() { return (draw_resources){0}; }
+static inline draw_resources gen_draw_resources() { return {}; }
 
 typedef struct
 {
     draw_type draw_type;
-    size_t instances;
-    size_t base_vertex;
-    size_t num_vertices;
+    size_t    instances;
+    size_t    base_vertex;
+    size_t    num_vertices;
 } draw_call_params;
+static inline draw_resources gen_draw_call_params() { return {}; }
 
 typedef struct
 {
-    pipeline pipeline;
-    draw_resources resources;
-    draw_call_params *draw_calls;
-    size_t num_draw_calls;
+    pipeline_handle   pipeline;
+    draw_resources    resources;
+    draw_call_params* draw_calls;
+    size_t            num_draw_calls;
 } draw_group;
+static inline draw_resources gen_draw_group() { return {}; }
 
 /* device_config - Contains a description/settings for a  device
  */
@@ -199,7 +201,7 @@ typedef struct
 typedef struct
 {
     device_resource_count resource_count;
-    const allocator *allocator;
+    const allocator*      allocator;
 
     enum
     {
@@ -218,47 +220,50 @@ typedef struct
 
 device_params default_device_params();
 /* create_device - creates an opaque pointer to a device
-*  device_config - parameter struct containing the parameters of a device.
-*                  default parameters will be used if this is NULL.
-*/
+ *  device_config - parameter struct containing the parameters of a device.
+ *                  default parameters will be used if this is NULL.
+ */
 
-#define MELON_GFX_CREATE_DEVICE(name) void name(device_params *device_config)
+#define MELON_GFX_CREATE_DEVICE(name) void name(melon::gfx::device_params* device_config)
 typedef MELON_GFX_CREATE_DEVICE(create_device_f);
-void init(device_params *device_config);
+void init(device_params* device_config);
 
 #define MELON_GFX_DELETE_DEVICE(name) void name()
 typedef MELON_GFX_DELETE_DEVICE(delete_device_f);
 void destroy();
 
-#define MELON_GFX_CREATE_SHADER(name) shader name(const shader_params *shader_create_info)
+#define MELON_GFX_CREATE_SHADER(name) \
+    melon::gfx::shader_handle name(const melon::gfx::shader_params* shader_create_info)
 typedef MELON_GFX_CREATE_SHADER(create_shader_f);
-extern create_shader_f *create_shader;
+extern create_shader_f* create_shader;
 
-#define MELON_GFX_DELETE_SHADER(name) void name(shader shader)
+#define MELON_GFX_DELETE_SHADER(name) void name(melon::gfx::shader_handle shader)
 typedef MELON_GFX_DELETE_SHADER(delete_shader_f);
-extern delete_shader_f *delete_shader;
+extern delete_shader_f* delete_shader;
 
-#define MELON_GFX_CREATE_BUFFER(name) buffer name(const buffer_params *buffer_create_info)
+#define MELON_GFX_CREATE_BUFFER(name) \
+    melon::gfx::buffer_handle name(const melon::gfx::buffer_params* buffer_create_info)
 typedef MELON_GFX_CREATE_BUFFER(create_buffer_f);
-extern create_buffer_f *create_buffer;
+extern create_buffer_f* create_buffer;
 
-#define MELON_GFX_DELETE_BUFFER(name) void name(buffer buffer)
+#define MELON_GFX_DELETE_BUFFER(name) void name(melon::gfx::buffer_handle buffer)
 typedef MELON_GFX_DELETE_BUFFER(delete_buffer_f);
-extern delete_buffer_f *delete_buffer;
+extern delete_buffer_f* delete_buffer;
 
-#define MELON_GFX_CREATE_PIPELINE(name) pipeline name(const pipeline_params *pipeline_create_info)
+#define MELON_GFX_CREATE_PIPELINE(name) \
+    melon::gfx::pipeline_handle name(const melon::gfx::pipeline_params* pipeline_create_info)
 typedef MELON_GFX_CREATE_PIPELINE(create_pipeline_f);
-extern create_pipeline_f *create_pipeline;
+extern create_pipeline_f* create_pipeline;
 
-#define MELON_GFX_DELETE_PIPELINE(name) void name(pipeline pipeline)
+#define MELON_GFX_DELETE_PIPELINE(name) void name(melon::gfx::pipeline_handle pipeline)
 typedef MELON_GFX_DELETE_PIPELINE(delete_pipeline_f);
-extern delete_pipeline_f *delete_pipeline;
+extern delete_pipeline_f* delete_pipeline;
 
-#define MELON_GFX_EXECUTE_DRAW_GROUPS(name) void name(draw_group *draw_groups, size_t num_draw_groups)
+#define MELON_GFX_EXECUTE_DRAW_GROUPS(name) void name(melon::gfx::draw_group* draw_groups, size_t num_draw_groups)
 typedef MELON_GFX_EXECUTE_DRAW_GROUPS(execute_draw_groups_f);
-extern execute_draw_groups_f *execute_draw_groups;
+extern execute_draw_groups_f* execute_draw_groups;
 
-} // namespace gfx
-} // namespace melon
+}    // namespace gfx
+}    // namespace melon
 
 #endif

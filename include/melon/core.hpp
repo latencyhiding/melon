@@ -1,11 +1,11 @@
-#ifndef MELON_CORE_H 
+#ifndef MELON_CORE_H
 #define MELON_CORE_H
 
 // Standard headers
-#include <stdint.h>
-#include <stdlib.h>
 #include <stdarg.h>
 #include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
 
 #include <tinycthread.h>
 
@@ -24,26 +24,26 @@ namespace melon
 // Utility for aligning pointers
 static inline void* align_forward(void* ptr, size_t align)
 {
-  if (align == 0)
-    return ptr;
-  uintptr_t uint_ptr = (uintptr_t) ptr;
-  return (void*) (uint_ptr + (align - (uint_ptr % align)));
+    if (align == 0)
+        return ptr;
+    uintptr_t uint_ptr = (uintptr_t) ptr;
+    return (void*) (uint_ptr + (align - (uint_ptr % align)));
 }
 
 static inline size_t aligned_size(void* ptr, size_t size, size_t align)
 {
-  uint8_t* ptr_u8 = (uint8_t*) ptr;
-  return (uint8_t*) align_forward(ptr_u8 + size, align) - ptr_u8;
+    uint8_t* ptr_u8 = (uint8_t*) ptr;
+    return (uint8_t*) align_forward(ptr_u8 + size, align) - ptr_u8;
 }
 
 // Functors for allocation callbacks
 typedef struct
 {
-  void* (*alloc) (void* user_data, size_t size, size_t align);
-  void* (*realloc) (void* user_data, void* ptr, size_t size, size_t align);
-  void (*dealloc) (void* user_data, void* ptr);
+    void* (*alloc)(void* user_data, size_t size, size_t align);
+    void* (*realloc)(void* user_data, void* ptr, size_t size, size_t align);
+    void (*dealloc)(void* user_data, void* ptr);
 
-  void* user_data;
+    void* user_data;
 } allocator;
 
 // Convenience macros for the callbacks
@@ -52,8 +52,8 @@ typedef struct
 #define MELON_REALLOC(allocator, ptr, size, align) (allocator.realloc(allocator.user_data, ptr, size, align))
 #define MELON_FREE(allocator, ptr) (allocator.dealloc(allocator.user_data, ptr))
 
-typedef void(*cb_logger) (const char* message, ...);
-extern cb_logger logger_callback;
+typedef void (*logger_callback_fp)(const char* message, ...);
+extern logger_callback_fp logger_callback;
 
 #ifdef MELON_DEBUG
 #define MELON_LOG(...) logger_callback(__VA_ARGS__)
@@ -70,26 +70,26 @@ const allocator* default_cb_allocator();
 
 typedef struct memory_block
 {
-  uint8_t *start;
-  size_t offset;
-  size_t size;
+    uint8_t* start;
+    size_t   offset;
+    size_t   size;
 
-  allocator allocator;
-  struct memory_block* prev;
+    allocator            allocator;
+    struct memory_block* prev;
 } memory_block;
 
-typedef enum 
+typedef enum
 {
-  MELON_NO_ALLOC_FLAGS = 0,
-  MELON_ALLOC_EXPAND_DOUBLE = 1 << 1
+    MELON_NO_ALLOC_FLAGS      = 0,
+    MELON_ALLOC_EXPAND_DOUBLE = 1 << 1
 } alloc_flag;
 
 typedef struct
 {
-  memory_block *current_block;
+    memory_block* current_block;
 
-  uint32_t allocation_flags;
-} arena;
+    uint32_t allocation_flags;
+} memory_arena;
 
 #define MELON_DEFAULT_ALIGN 16
 
@@ -97,17 +97,18 @@ typedef struct
 
 #define MELON_ALLOC_ARENA4(alloc, size, align, alloc_flags) create_arena(NULL, alloc_flags, size, align, &alloc)
 #define MELON_ALLOC_ARENA3(alloc, size, align) create_arena(NULL, MELON_NO_ALLOC_FLAGS, size, align, &alloc)
-#define MELON_ALLOC_ARENA(...) MELON_GET_MACRO(__VA_ARGS__, MELON_ALLOC_ARENA4, MELON_ALLOC_ARENA3) \
-(__VA_ARGS__)
+#define MELON_ALLOC_ARENA(...)                                           \
+    MELON_GET_MACRO(__VA_ARGS__, MELON_ALLOC_ARENA4, MELON_ALLOC_ARENA3) \
+    (__VA_ARGS__)
 #define MELON_FREE_ARENA(arena) destroy_arena(&arena)
 #define MELON_ARENA_PUSH(arena, size, align) arena_push_size(&arena, size, align)
-#define MELON_ARENA_PUSH_STRUCT(arena, T) ((T *)MELON_ARENA_PUSH(arena, sizeof(T), sizeof(T)))
-#define MELON_ARENA_PUSH_ARRAY(arena, T, length, align) ((T *)MELON_ARENA_PUSH(arena, sizeof(T) * length), sizeof(T))
+#define MELON_ARENA_PUSH_STRUCT(arena, T) ((T*) MELON_ARENA_PUSH(arena, sizeof(T), sizeof(T)))
+#define MELON_ARENA_PUSH_ARRAY(arena, T, length, align) ((T*) MELON_ARENA_PUSH(arena, sizeof(T) * length), sizeof(T))
 
-arena create_arena(memory_block *prev, uint32_t alloc_flags, size_t size, size_t align, const allocator *alloc);
-void destroy_arena(arena *arena);
-void *arena_push_size(arena *arena, size_t size, size_t align);
-void arena_reset(arena *arena);
+memory_arena create_arena(memory_block* prev, uint32_t alloc_flags, size_t size, size_t align, const allocator* alloc);
+void         destroy_arena(memory_arena* arena);
+void*        arena_push_size(memory_arena* arena, size_t size, size_t align);
+void         arena_reset(memory_arena* arena);
 
 ////////////////////////////////////////////////////////////////////////////////
 // pool - an index pool with a stack-like behavior. Indices are allocated in
@@ -118,19 +119,19 @@ typedef size_t pool_index;
 
 typedef struct
 {
-  size_t* free_indices;
-  size_t capacity;
-  size_t num_free_indices;
+    pool_index* free_indices;
+    size_t      capacity;
+    size_t      num_free_indices;
 
-  allocator allocator;
-} pool;
+    allocator allocator;
+} index_pool;
 
-void create_pool(pool *pool, size_t capacity, const allocator *allocator);
-void delete_pool(pool *pool);
-pool_index pool_create_index(pool *pool);
-bool pool_index_is_valid(pool *pool, pool_index id);
+void       create_pool(index_pool* pool, size_t capacity, const allocator* allocator);
+void       delete_pool(index_pool* pool);
+pool_index pool_create_index(index_pool* pool);
+bool       pool_index_is_valid(index_pool* pool, pool_index id);
 pool_index pool_gen_invalid_index();
-bool pool_delete_index(pool *pool, pool_index index);
+bool       pool_delete_index(index_pool* pool, pool_index index);
 
 ////////////////////////////////////////////////////////////////////////////////
 // pool_vector - a vector that uses an id pool for access
@@ -138,33 +139,42 @@ bool pool_delete_index(pool *pool, pool_index index);
 
 typedef struct
 {
-  pool pool;
+    index_pool pool;
 
-  void* data;
-  size_t capacity;
-  size_t element_size;
+    void*  data;
+    size_t capacity;
+    size_t element_size;
 
-  allocator allocator;
+    allocator allocator;
 } pool_vector;
 
-void create_pool_vector(pool_vector* pv, size_t capacity, size_t element_size, const allocator* allocator);
-void delete_pool_vector(pool_vector* pv);
+void       create_pool_vector(pool_vector* pv, size_t capacity, size_t element_size, const allocator* allocator);
+void       delete_pool_vector(pool_vector* pv);
 pool_index pool_vector_push(pool_vector* pv, void* val);
 
-#define MELON_POOL_VECTOR(name, T) \
-typedef struct \
-{\
-  pool_vector pv;\
-} ##name##_pool;\
-static inline void create_##name##_pool(##name##_pool* pv, size_t capacity, const allocator* allocator) { create_pool_vector(&pv->pv, capacity, sizeof(T), allocator); } \
-static inline void delete_##name##_pool(##name##_pool* pv) { delete_pool_vector(&pv->pv); } \
-static inline T ##name##_pool_get(##name##_pool* pv, pool_index id) { return ((T*) pv->pv.data)[id];} \
-static inline T* ##name##_pool_get_p(##name##_pool* pv, pool_index id) { return ((T*) pv->pv.data) + id;} \
-static inline void ##name##_pool_set(##name##_pool* pv, pool_index id, T val) { ((T*) pv->pv.data)[id] = val; } \
-static inline pool_index ##name##_pool_push(##name##_pool* pv, T val) { return pool_vector_push(&pv->pv, &val);} \
-static inline bool ##name##_pool_delete(##name##_pool* pv, pool_index index) { return pool_delete_index(&pv->pv.pool, index); } \
-static inline bool ##name##_pool_index_is_valid(##name##_pool* pv, pool_index index) { return pool_index_is_valid(&pv->pv.pool, index); }
+#define MELON_POOL_VECTOR(name, T)                                                                                    \
+    typedef struct                                                                                                    \
+    {                                                                                                                 \
+        pool_vector pv;                                                                                               \
+    } name##_pool;                                                                                                    \
+    static inline void create_##name##_pool(name##_pool* pv, size_t capacity, const allocator* allocator)             \
+    {                                                                                                                 \
+        create_pool_vector(&pv->pv, capacity, sizeof(T), allocator);                                                  \
+    }                                                                                                                 \
+    static inline void       delete_##name##_pool(name##_pool* pv) { delete_pool_vector(&pv->pv); }                   \
+    static inline T          name##_pool_get(name##_pool* pv, pool_index id) { return ((T*) pv->pv.data)[id]; }       \
+    static inline T*         name##_pool_get_p(name##_pool* pv, pool_index id) { return ((T*) pv->pv.data) + id; }    \
+    static inline void       name##_pool_set(name##_pool* pv, pool_index id, T val) { ((T*) pv->pv.data)[id] = val; } \
+    static inline pool_index name##_pool_push(name##_pool* pv, T val) { return pool_vector_push(&pv->pv, &val); }     \
+    static inline bool       name##_pool_delete(name##_pool* pv, pool_index index)                                    \
+    {                                                                                                                 \
+        return pool_delete_index(&pv->pv.pool, index);                                                                \
+    }                                                                                                                 \
+    static inline bool name##_pool_index_is_valid(name##_pool* pv, pool_index index)                                  \
+    {                                                                                                                 \
+        return pool_index_is_valid(&pv->pv.pool, index);                                                              \
+    }
 
-}
+}    // namespace melon
 
 #endif

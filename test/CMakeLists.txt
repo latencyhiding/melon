@@ -13,5 +13,5 @@ else()
     --force-new-ctest-process --output-on-failure)
 endif()
 
-create_unit_test(pool_test pool_test.c)
-create_unit_test(gfx_test gfx_test/main.c)
+create_unit_test(pool_test pool_test.cpp)
+create_unit_test(gfx_test gfx_test/main.cpp)

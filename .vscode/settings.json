@@ -2,5 +2,6 @@
     "files.associations": {
         "memory": "c",
         "error.h": "c"
-    }
+    },
+    "editor.tabSize": 4,
 }
