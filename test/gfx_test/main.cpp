@@ -147,7 +147,7 @@ int main(int argc, char** argv)
 
     melon::gfx::draw_call_params draw_calls = {};
     {
-        draw_calls.draw_type    = melon::gfx::MELON_TRIANGLES;
+        draw_calls.type         = melon::gfx::MELON_TRIANGLES;
         draw_calls.instances    = 1;
         draw_calls.base_vertex  = 0;
         draw_calls.num_vertices = 3;
@@ -155,9 +155,9 @@ int main(int argc, char** argv)
 
     melon::gfx::draw_group draw_group = {};
     {
-        draw_group.pipeline       = pipeline;
-        draw_group.resources      = {};
-        { 
+        draw_group.pipeline  = pipeline;
+        draw_group.resources = {};
+        {
             draw_group.resources.buffers[0] = vertex_buffer;
         }
         draw_group.draw_calls     = &draw_calls;

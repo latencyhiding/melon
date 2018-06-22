@@ -44,7 +44,7 @@ typedef struct
     void (*dealloc)(void* user_data, void* ptr);
 
     void* user_data;
-} allocator;
+} allocator_api;
 
 // Convenience macros for the callbacks
 
@@ -62,7 +62,7 @@ extern logger_callback_fp logger_callback;
 #endif
 
 // Returns the default callbacks for our backend
-const allocator* default_cb_allocator();
+const allocator_api* default_cb_allocator();
 
 ////////////////////////////////////////////////////////////////////////////////
 // arena - fixed sized linear memory areas backed by custom allocators
@@ -74,7 +74,7 @@ typedef struct memory_block
     size_t   offset;
     size_t   size;
 
-    allocator            allocator;
+    allocator_api        allocator;
     struct memory_block* prev;
 } memory_block;
 
@@ -99,12 +99,12 @@ typedef struct
 #define MELON_ARENA_PUSH_STRUCT(arena, T) ((T*) MELON_ARENA_PUSH(arena, sizeof(T), sizeof(T)))
 #define MELON_ARENA_PUSH_ARRAY(arena, T, length, align) ((T*) MELON_ARENA_PUSH(arena, sizeof(T) * length), sizeof(T))
 
-memory_arena create_arena(memory_block* prev, uint32_t alloc_flags, size_t size, size_t align, const allocator* alloc);
-inline memory_arena create_arena(uint32_t alloc_flags, size_t size, size_t align, const allocator* alloc)
+memory_arena create_arena(memory_block* prev, uint32_t alloc_flags, size_t size, size_t align, const allocator_api* alloc);
+inline memory_arena create_arena(uint32_t alloc_flags, size_t size, size_t align, const allocator_api* alloc)
 {
     return create_arena(NULL, alloc_flags, size, align, alloc);
 }
-inline memory_arena create_arena(size_t size, size_t align, const allocator* alloc)
+inline memory_arena create_arena(size_t size, size_t align, const allocator_api* alloc)
 {
     return create_arena(NULL, MELON_NO_ALLOC_FLAGS, size, align, alloc);
 }
@@ -125,10 +125,10 @@ typedef struct
     size_t      capacity;
     size_t      num_free_indices;
 
-    allocator allocator;
+    allocator_api allocator;
 } index_pool;
 
-void       create_index_pool(index_pool* pool, size_t capacity, const allocator* allocator);
+void       create_index_pool(index_pool* pool, size_t capacity, const allocator_api* allocator);
 void       delete_index_pool(index_pool* pool);
 pool_index pool_create_index(index_pool* pool);
 bool       pool_index_is_valid(index_pool* pool, pool_index id);
@@ -147,10 +147,10 @@ typedef struct
     size_t capacity;
     size_t element_size;
 
-    allocator allocator;
+    allocator_api allocator;
 } pool_vector;
 
-void       create_pool_vector(pool_vector* pv, size_t capacity, size_t element_size, const allocator* allocator);
+void       create_pool_vector(pool_vector* pv, size_t capacity, size_t element_size, const allocator_api* allocator);
 void       delete_pool_vector(pool_vector* pv);
 pool_index pool_vector_push(pool_vector* pv, void* val);
 
@@ -159,7 +159,7 @@ pool_index pool_vector_push(pool_vector* pv, void* val);
     {                                                                                                                 \
         pool_vector pv;                                                                                               \
     } name##_pool;                                                                                                    \
-    static inline void create_##name##_pool(name##_pool* pv, size_t capacity, const allocator* allocator)             \
+    static inline void create_##name##_pool(name##_pool* pv, size_t capacity, const allocator_api* allocator)         \
     {                                                                                                                 \
         create_pool_vector(&pv->pv, capacity, sizeof(T), allocator);                                                  \
     }                                                                                                                 \

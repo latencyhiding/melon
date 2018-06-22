@@ -37,10 +37,10 @@ static void* aligned_realloc(void* user_data, void* ptr, size_t size, size_t ali
 
 static void aligned_free(void* user_data, void* ptr) { free(((void**) ptr)[-1]); }
 
-const allocator* default_cb_allocator()
+const allocator_api* default_cb_allocator()
 {
-    static allocator* p_allocator = NULL;
-    static allocator  allocator;
+    static allocator_api* p_allocator = NULL;
+    static allocator_api  allocator;
 
     if (p_allocator == NULL)
     {
@@ -59,7 +59,8 @@ const allocator* default_cb_allocator()
 // Arena functions
 ////////////////////////////////////////////////////////////////////////////////
 
-memory_arena create_arena(memory_block* prev, uint32_t alloc_flags, size_t size, size_t align, const allocator* alloc)
+memory_arena create_arena(memory_block* prev, uint32_t alloc_flags, size_t size, size_t align,
+                          const allocator_api* alloc)
 {
     memory_block* result = (memory_block*) MELON_ALLOC((*alloc), size + align + sizeof(memory_block), align);
     result->start        = (uint8_t*) align_forward(result + 1, align);
@@ -145,7 +146,7 @@ logger_callback_fp logger_callback = default_logger;
 // Pool implementation
 ////////////////////////////////////////////////////////////////////////////////
 
-void create_index_pool(index_pool* pool, size_t capacity, const allocator* allocator)
+void create_index_pool(index_pool* pool, size_t capacity, const allocator_api* allocator)
 {
     pool->allocator        = *allocator;
     pool->free_indices     = (size_t*) MELON_ALLOC(pool->allocator, sizeof(size_t) * capacity, MELON_DEFAULT_ALIGN);
@@ -214,7 +215,7 @@ bool pool_delete_index(index_pool* pool, pool_index index)
 // pool_vector - a vector that uses an id pool for access
 ////////////////////////////////////////////////////////////////////////////////
 
-void create_pool_vector(pool_vector* pv, size_t capacity, size_t element_size, const allocator* allocator)
+void create_pool_vector(pool_vector* pv, size_t capacity, size_t element_size, const allocator_api* allocator)
 {
     pv->allocator    = *allocator;
     pv->capacity     = capacity;

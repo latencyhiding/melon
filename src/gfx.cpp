@@ -29,7 +29,7 @@ handle invalid_handle;
 typedef struct
 {
     device_resource_count resource_count;
-    allocator             allocator;
+    allocator_api         allocator;
 } device;
 
 static device g_device;
@@ -91,7 +91,7 @@ typedef struct
 
 typedef struct
 {
-    draw_call_params draw_call_params;
+    draw_call_params call_params;
 } command_draw;
 
 typedef struct
@@ -265,7 +265,7 @@ MELON_GFX_CREATE_DEVICE(create_device_gl3)
 
 MELON_GFX_DELETE_DEVICE(delete_device_gl3) { glDeleteVertexArrays(1, &g_device_gl.dummy_vao); }
 
-static GLuint compile_shader(const allocator* allocator, GLenum type,
+static GLuint compile_shader(const allocator_api* allocator, GLenum type,
                              const shader_stage_params* shader_stage_create_info)
 {
     if (!shader_stage_create_info->source)
@@ -547,13 +547,13 @@ MELON_GFX_EXECUTE_DRAW_GROUPS(execute_draw_groups_gl3)
 
             if (MELON_GFX_HANDLE_IS_VALID(resources->index_buffer))
             {
-                glDrawElementsInstancedBaseVertex(gl_draw_type(draw_call->draw_type), draw_call->num_vertices,
+                glDrawElementsInstancedBaseVertex(gl_draw_type(draw_call->type), draw_call->num_vertices,
                                                   gl_data_format(resources->index_type), NULL, draw_call->instances,
                                                   draw_call->base_vertex);
             }
             else
             {
-                glDrawArraysInstanced(gl_draw_type(draw_call->draw_type), draw_call->base_vertex,
+                glDrawArraysInstanced(gl_draw_type(draw_call->type), draw_call->base_vertex,
                                       draw_call->num_vertices, draw_call->instances);
             }
         }
@@ -576,7 +576,7 @@ device_params default_gfx_device_params()
             result.resource_count.max_pipelines       = 256;
             result.resource_count.max_command_buffers = 256;
         }
-        result.allocator = default_cb_allocator();
+        result.allocator    = default_cb_allocator();
         result.graphics_api = device_params::OPENGL3;
     };
     return result;

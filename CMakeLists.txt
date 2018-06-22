@@ -41,14 +41,13 @@ include_directories(thirdparty)
 
 ## libs
 set(CMAKE_CXX_FLAGS_DEBUG  "-g")
+set (CMAKE_CXX_STANDARD 11)
 # engine lib
 set(LIB_NAME melon)
 include_directories(include)
 add_library(${LIB_NAME} STATIC
                         src/core.cpp
                         src/gfx.cpp)
-set_property(TARGET ${LIB_NAME} PROPERTY C_STANDARD 99)
-set_property(TARGET ${LIB_NAME} PROPERTY C_STANDARD_REQUIRED ON)
 
 ## define lib names
 set(LIBS ${OPENGL_LIBRARIES} ${LIB_NAME} glfw glad tinycthread header_only_impls)
