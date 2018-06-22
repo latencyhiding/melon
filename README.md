@@ -11,6 +11,7 @@
   * Command buffers
   * Uniforms
   * Textures
+  * C bindings?
 
 ## Design goals
   * Default 2D, but 3D capable
