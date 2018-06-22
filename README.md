@@ -1,6 +1,6 @@
 # 🍉 engine
 
-TODO:
+## TODO:
 1. Reorg
   * ~"melon" namespace, replace c style prefixes, rename "tz_" prefix~
   * ~"src" -> "tests" containing actual applications building w/ melon~
@@ -11,6 +11,15 @@ TODO:
   * Command buffers
   * Uniforms
   * Textures
-3. Style
+
+## Design goals
+  * Simple, but scalable
+  * Cute
+
+## Style
   * Syntax style is enforced by .clang-format
   * General motivation is to be C-style, but using a subset of C++ features
+
+## Third party dependencies
+  * GLFW (http://www.glfw.org/) included as a submodule
+  * tinycthread (https://tinycthread.github.io/) included as a submodule
