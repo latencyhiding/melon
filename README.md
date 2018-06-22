@@ -12,7 +12,7 @@
   * Uniforms
   * Textures
   * Render passes
-  * C bindings?
+  * C bindings? Or redo in C, then make a C++ wrapper that incorporates it into the namespaces
 
 ## Design goals
   * Default 2D, but 3D capable
