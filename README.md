@@ -25,6 +25,7 @@
   * General motivation is to be C-style, but using a subset of C++ features
   * Make sparse use of templates
   * OOP is not dogma: keep things readable, simple, and where possible, linear
+  * Zero is initialization
 
 ## Third party dependencies
   * GLFW (http://www.glfw.org/) included as a submodule
