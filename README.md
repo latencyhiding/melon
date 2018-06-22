@@ -11,3 +11,6 @@ TODO:
   * Command buffers
   * Uniforms
   * Textures
+3. Style
+  * Syntax style is enforced by .clang-format
+  * General motivation is to be C-style, but using a subset of C++ features
