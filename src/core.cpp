@@ -145,7 +145,7 @@ logger_callback_fp logger_callback = default_logger;
 // Pool implementation
 ////////////////////////////////////////////////////////////////////////////////
 
-void create_pool(index_pool* pool, size_t capacity, const allocator* allocator)
+void create_index_pool(index_pool* pool, size_t capacity, const allocator* allocator)
 {
     pool->allocator        = *allocator;
     pool->free_indices     = (size_t*) MELON_ALLOC(pool->allocator, sizeof(size_t) * capacity, MELON_DEFAULT_ALIGN);
@@ -156,7 +156,7 @@ void create_pool(index_pool* pool, size_t capacity, const allocator* allocator)
         pool->free_indices[capacity - 1 - i] = i;
 }
 
-void delete_pool(index_pool* pool) { MELON_FREE(pool->allocator, pool->free_indices); }
+void delete_index_pool(index_pool* pool) { MELON_FREE(pool->allocator, pool->free_indices); }
 
 pool_index pool_create_index(index_pool* pool)
 {
@@ -220,13 +220,13 @@ void create_pool_vector(pool_vector* pv, size_t capacity, size_t element_size, c
     pv->capacity     = capacity;
     pv->element_size = element_size;
 
-    create_pool(&pv->pool, capacity, allocator);
+    create_index_pool(&pv->pool, capacity, allocator);
     pv->data = MELON_ALLOC(pv->allocator, capacity * element_size, element_size);
 }
 
 void delete_pool_vector(pool_vector* pv)
 {
-    delete_pool(&pv->pool);
+    delete_index_pool(&pv->pool);
     MELON_FREE(pv->allocator, pv->data);
 }
 

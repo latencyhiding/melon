@@ -128,8 +128,8 @@ typedef struct
     allocator allocator;
 } index_pool;
 
-void       create_pool(index_pool* pool, size_t capacity, const allocator* allocator);
-void       delete_pool(index_pool* pool);
+void       create_index_pool(index_pool* pool, size_t capacity, const allocator* allocator);
+void       delete_index_pool(index_pool* pool);
 pool_index pool_create_index(index_pool* pool);
 bool       pool_index_is_valid(index_pool* pool, pool_index id);
 pool_index pool_gen_invalid_index();
