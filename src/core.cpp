@@ -162,7 +162,7 @@ pool_index pool_create_index(index_pool* pool)
 {
     pool_index new_index = pool_gen_invalid_index();
 
-    uint32_t index;
+    pool_index index;
 
     // Pop aligned_free indices off the stack until one with a valid
     // generation is found

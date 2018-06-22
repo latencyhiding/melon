@@ -95,20 +95,22 @@ typedef struct
 
 #define MELON_GET_MACRO(_1, _2, _3, _4, NAME, ...) NAME
 
-#define MELON_ALLOC_ARENA4(alloc, size, align, alloc_flags) create_arena(NULL, alloc_flags, size, align, &alloc)
-#define MELON_ALLOC_ARENA3(alloc, size, align) create_arena(NULL, MELON_NO_ALLOC_FLAGS, size, align, &alloc)
-#define MELON_ALLOC_ARENA(...)                                           \
-    MELON_GET_MACRO(__VA_ARGS__, MELON_ALLOC_ARENA4, MELON_ALLOC_ARENA3) \
-    (__VA_ARGS__)
-#define MELON_FREE_ARENA(arena) destroy_arena(&arena)
 #define MELON_ARENA_PUSH(arena, size, align) arena_push_size(&arena, size, align)
 #define MELON_ARENA_PUSH_STRUCT(arena, T) ((T*) MELON_ARENA_PUSH(arena, sizeof(T), sizeof(T)))
 #define MELON_ARENA_PUSH_ARRAY(arena, T, length, align) ((T*) MELON_ARENA_PUSH(arena, sizeof(T) * length), sizeof(T))
 
 memory_arena create_arena(memory_block* prev, uint32_t alloc_flags, size_t size, size_t align, const allocator* alloc);
-void         destroy_arena(memory_arena* arena);
-void*        arena_push_size(memory_arena* arena, size_t size, size_t align);
-void         arena_reset(memory_arena* arena);
+inline memory_arena create_arena(uint32_t alloc_flags, size_t size, size_t align, const allocator* alloc)
+{
+    return create_arena(NULL, alloc_flags, size, align, alloc);
+}
+inline memory_arena create_arena(size_t size, size_t align, const allocator* alloc)
+{
+    return create_arena(NULL, MELON_NO_ALLOC_FLAGS, size, align, alloc);
+}
+void  destroy_arena(memory_arena* arena);
+void* arena_push_size(memory_arena* arena, size_t size, size_t align);
+void  arena_reset(memory_arena* arena);
 
 ////////////////////////////////////////////////////////////////////////////////
 // pool - an index pool with a stack-like behavior. Indices are allocated in

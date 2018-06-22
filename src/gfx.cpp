@@ -119,7 +119,7 @@ void cb_create(device* device, command_buffer* cb, size_t block_size)
 
     cb->recording = false;
 
-    cb->memory = MELON_ALLOC_ARENA(device->allocator, block_size, MELON_DEFAULT_ALIGN);
+    cb->memory = create_arena(block_size, MELON_DEFAULT_ALIGN, &device->allocator);
 }
 
 void cb_destroy(device* device, command_buffer* cb)
@@ -127,7 +127,7 @@ void cb_destroy(device* device, command_buffer* cb)
     cnd_destroy(&cb->cond);
     mtx_destroy(&cb->mtx);
 
-    MELON_FREE_ARENA(cb->memory);
+    destroy_arena(&cb->memory);
 }
 
 void cb_begin(command_buffer* cb)
@@ -579,6 +579,7 @@ device_params default_gfx_device_params()
         result.allocator = default_cb_allocator();
         result.graphics_api = device_params::OPENGL3;
     };
+    return result;
 }
 
 void init(device_params* device_config)
