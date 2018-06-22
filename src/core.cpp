@@ -189,7 +189,7 @@ pool_index pool_create_index(index_pool* pool)
 
 bool pool_index_is_valid(index_pool* pool, pool_index index) { return (index < pool->capacity); }
 
-pool_index pool_gen_invalid_index() { return { ~0 }; }
+pool_index pool_gen_invalid_index() { return ~0; }
 
 bool pool_delete_index(index_pool* pool, pool_index index)
 {
