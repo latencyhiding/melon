@@ -15,6 +15,7 @@
 ## Design goals
   * Default 2D, but 3D capable
   * Simple, but scalable
+  * Modular, so that some parts can be pulled out and used piecemeal
   * Cute
 
 ## Style
