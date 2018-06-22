@@ -11,6 +11,7 @@
   * Command buffers
   * Uniforms
   * Textures
+  * Render passes
   * C bindings?
 
 ## Design goals
