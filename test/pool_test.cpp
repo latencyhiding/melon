@@ -4,7 +4,7 @@
 int main()
 {
     const size_t test_capacity = 12;
-    melon::index_pool pool;
+    melon::IndexPool pool;
     melon::create_index_pool(&pool, test_capacity, melon::default_cb_allocator());
 
     MELON_ASSERT(pool.free_indices != NULL);
