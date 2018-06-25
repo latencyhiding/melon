@@ -83,14 +83,14 @@ typedef enum
     MELON_POINTS
 } DrawType;
 
-#define MELON_GFX_PARAM_INIT(name) ((name) { 0 })
+#define MELON_GFX_PARAM_INIT(name) ((name){ 0 })
 
 /* buffer - Struct defining parameters for buffer creation
  */
 typedef struct
 {
-    void*        data;
-    size_t       size;
+    void*       data;
+    size_t      size;
     BufferUsage usage;
 } BufferParams;
 
@@ -107,12 +107,12 @@ typedef struct
  */
 typedef struct
 {
-    const char*      name;
-    size_t           buffer_binding;
-    size_t           offset;
+    const char*    name;
+    size_t         buffer_binding;
+    size_t         offset;
     VertexDataType type;
-    int              size;
-    int              divisor;
+    int            size;
+    int            divisor;
 } VertexAttribParams;
 
 typedef struct
@@ -133,7 +133,7 @@ typedef struct
 typedef struct
 {
     VertexAttribParams vertex_attribs[MELON_MAX_ATTRIBUTES];
-    size_t               stride;
+    size_t             stride;
 
     ShaderHandle shader_program;
 } PipelineParams;
@@ -162,24 +162,24 @@ typedef struct
 {
     BufferHandle buffers[MELON_MAX_BUFFER_ATTACHMENTS];
 
-    BufferHandle    index_buffer;
+    BufferHandle   index_buffer;
     VertexDataType index_type;
 } DrawResources;
 
 typedef struct
 {
     DrawType type;
-    size_t    instances;
-    size_t    base_vertex;
-    size_t    num_vertices;
+    size_t   instances;
+    size_t   base_vertex;
+    size_t   num_vertices;
 } DrawCallParams;
 
 typedef struct
 {
-    PipelineHandle   pipeline;
-    DrawResources    resources;
+    PipelineHandle  pipeline;
+    DrawResources   resources;
     DrawCallParams* draw_calls;
-    size_t            num_draw_calls;
+    size_t          num_draw_calls;
 } draw_group;
 
 /* device_config - Contains a description/settings for a  device
@@ -195,7 +195,7 @@ typedef struct
 typedef struct
 {
     DeviceResourceCount resource_count;
-    const AllocatorApi*      allocator;
+    const AllocatorApi* allocator;
 
     enum
     {
@@ -226,8 +226,7 @@ void init(DeviceParams* device_config);
 typedef MELON_GFX_DELETE_DEVICE(DeleteDeviceFunc);
 void destroy();
 
-#define MELON_GFX_CREATE_SHADER(name) \
-    melon::gfx::ShaderHandle name(const melon::gfx::ShaderParams* shader_create_info)
+#define MELON_GFX_CREATE_SHADER(name) melon::gfx::ShaderHandle name(const melon::gfx::ShaderParams* shader_create_info)
 typedef MELON_GFX_CREATE_SHADER(CreateShaderFunc);
 extern CreateShaderFunc* create_shader;
 
@@ -235,8 +234,7 @@ extern CreateShaderFunc* create_shader;
 typedef MELON_GFX_DELETE_SHADER(DeleteShaderFunc);
 extern DeleteShaderFunc* delete_shader;
 
-#define MELON_GFX_CREATE_BUFFER(name) \
-    melon::gfx::BufferHandle name(const melon::gfx::BufferParams* buffer_create_info)
+#define MELON_GFX_CREATE_BUFFER(name) melon::gfx::BufferHandle name(const melon::gfx::BufferParams* buffer_create_info)
 typedef MELON_GFX_CREATE_BUFFER(CreateBufferFunc);
 extern CreateBufferFunc* create_buffer;
 

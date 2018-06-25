@@ -140,7 +140,7 @@ static void default_logger(const char* message, ...)
     va_end(arg_list);
 }
 
-logger_callback_fp logger_callback = default_logger;
+LoggerCallbackFp logger_callback = default_logger;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Pool implementation
