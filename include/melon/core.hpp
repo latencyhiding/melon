@@ -52,8 +52,8 @@ typedef struct
 #define MELON_REALLOC(allocator, ptr, size, align) (allocator.realloc(allocator.user_data, ptr, size, align))
 #define MELON_FREE(allocator, ptr) (allocator.dealloc(allocator.user_data, ptr))
 
-typedef void (*LoggerCallbackFp)(const char* message, ...);
-extern LoggerCallbackFp logger_callback;
+typedef void (*logger_callback_fp)(const char* message, ...);
+extern logger_callback_fp logger_callback;
 
 #ifdef MELON_DEBUG
 #define MELON_LOG(...) logger_callback(__VA_ARGS__)
