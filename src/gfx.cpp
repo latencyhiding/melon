@@ -77,22 +77,7 @@ typedef struct
 {
     buffer_handle buffer;
     size_t        binding;
-} command_bind_vertex_buffer;
-
-typedef struct
-{
-    buffer_handle buffer;
-} command_bind_index_buffer;
-
-typedef struct
-{
-    pipeline_handle pipeline;
-} command_bind_pipeline;
-
-typedef struct
-{
-    draw_call_params call_params;
-} command_draw;
+} bind_vertex_buffer_data;
 
 typedef struct
 {
@@ -103,12 +88,8 @@ typedef struct
         BIND_PIPELINE,
         DRAW
     } type;
-    union {
-        command_bind_vertex_buffer bind_vb;
-        command_bind_index_buffer  bind_ib;
-        command_bind_pipeline      bind_pipeline;
-        draw_call_params           draw;
-    };
+
+    void* data;
 } command;
 
 void cb_create(device* device, command_buffer* cb, size_t block_size)
