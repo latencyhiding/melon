@@ -52,6 +52,8 @@ MELON_GFX_HANDLE(shader_handle);
 MELON_GFX_HANDLE(pipeline_handle);
 MELON_GFX_HANDLE(command_buffer_handle);
 
+#define MELON_GFX_GEN_PARAMS(type) ((type) { 0 })
+
 // Basic vertex data types
 typedef enum
 {
@@ -91,7 +93,6 @@ typedef struct
     size_t       size;
     buffer_usage usage;
 } buffer_params;
-static inline buffer_params gen_buffer_params() { return {}; }
 
 /* vertex_attrib - Struct defining vertex attributes
  *
@@ -113,7 +114,6 @@ typedef struct
     int              size;
     int              divisor;
 } vertex_attrib_params;
-static inline vertex_attrib_params gen_vertex_attrib_params() { return { 0 }; }
 
 typedef struct
 {
@@ -121,7 +121,6 @@ typedef struct
     const char* source;
     size_t      size;
 } shader_stage_params;
-static inline shader_stage_params gen_shader_stage_params() { return { 0 }; }
 
 /* shader - Struct defining a shader
  */
@@ -130,7 +129,6 @@ typedef struct
     shader_stage_params vertex_shader;
     shader_stage_params fragment_shader;
 } shader_params;
-static inline shader_params gen_shader_params() { return { 0 }; }
 
 typedef struct
 {
@@ -139,7 +137,6 @@ typedef struct
 
     shader_handle shader_program;
 } pipeline_params;
-static inline pipeline_params gen_pipeline_params() { return { 0 }; }
 
 typedef enum
 {
@@ -168,7 +165,6 @@ typedef struct
     buffer_handle    index_buffer;
     vertex_data_type index_type;
 } draw_resources;
-static inline draw_resources gen_draw_resources() { return { 0 }; }
 
 typedef struct
 {
@@ -177,7 +173,6 @@ typedef struct
     size_t    base_vertex;
     size_t    num_vertices;
 } draw_call_params;
-static inline draw_resources gen_draw_call_params() { return { 0 }; }
 
 typedef struct
 {
@@ -186,7 +181,6 @@ typedef struct
     draw_call_params* draw_calls;
     size_t            num_draw_calls;
 } draw_group;
-static inline draw_resources gen_draw_group() { return { 0 }; }
 
 /* device_config - Contains a description/settings for a  device
  */
