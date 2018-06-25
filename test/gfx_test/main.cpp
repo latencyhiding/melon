@@ -99,36 +99,36 @@ int main(int argc, char** argv)
     const char* fragment_source = load_text_file("../assets/shaders/passthrough.frag");
     MELON_ASSERT(fragment_source);
 
-    melon::gfx::ShaderParams ShaderParams = {};
+    melon::gfx::shader_params shader_params = {};
     {
-        ShaderParams.vertex_shader.name   = "passthrough.vert";
-        ShaderParams.vertex_shader.source = vertex_source;
-        ShaderParams.vertex_shader.size   = strlen(vertex_source);
+        shader_params.vertex_shader.name   = "passthrough.vert";
+        shader_params.vertex_shader.source = vertex_source;
+        shader_params.vertex_shader.size   = strlen(vertex_source);
     }
     {
-        ShaderParams.fragment_shader.name   = "passthrough.frag";
-        ShaderParams.fragment_shader.source = fragment_source;
-        ShaderParams.fragment_shader.size   = strlen(fragment_source);
+        shader_params.fragment_shader.name   = "passthrough.frag";
+        shader_params.fragment_shader.source = fragment_source;
+        shader_params.fragment_shader.size   = strlen(fragment_source);
     }
 
-    melon::gfx::ShaderHandle shader_program = melon::gfx::create_shader(&ShaderParams);
+    melon::gfx::shader_handle shader_program = melon::gfx::create_shader(&shader_params);
 
     free((void*) vertex_source);
     free((void*) fragment_source);
 
     float vertices[] = { -0.5f, -0.5f, 0.5f, -0.5f, 0.0f, 0.5f };
 
-    melon::gfx::BufferParams BufferParams = {};
+    melon::gfx::buffer_params buffer_params = {};
     {
-        BufferParams.data  = vertices;
-        BufferParams.size  = sizeof(vertices);
-        BufferParams.usage = melon::gfx::MELON_STATIC_BUFFER;
+        buffer_params.data  = vertices;
+        buffer_params.size  = sizeof(vertices);
+        buffer_params.usage = melon::gfx::MELON_STATIC_BUFFER;
     }
-    melon::gfx::BufferHandle vertex_buffer = melon::gfx::create_buffer(&BufferParams);
+    melon::gfx::buffer_handle vertex_buffer = melon::gfx::create_buffer(&buffer_params);
 
-    melon::gfx::PipelineParams PipelineParams = {};
+    melon::gfx::pipeline_params pipeline_params = {};
     {
-        melon::gfx::VertexAttribParams position_attrib = {};
+        melon::gfx::vertex_attrib_params position_attrib = {};
 
         position_attrib                = {};
         position_attrib.name           = "position";
@@ -138,14 +138,14 @@ int main(int argc, char** argv)
         position_attrib.size           = 2;
         position_attrib.divisor        = 0;
 
-        PipelineParams.vertex_attribs[0] = position_attrib;
+        pipeline_params.vertex_attribs[0] = position_attrib;
 
-        PipelineParams.shader_program = shader_program;
+        pipeline_params.shader_program = shader_program;
     }
 
-    melon::gfx::PipelineHandle pipeline = melon::gfx::create_pipeline(&PipelineParams);
+    melon::gfx::pipeline_handle pipeline = melon::gfx::create_pipeline(&pipeline_params);
 
-    melon::gfx::DrawCallParams draw_calls = {};
+    melon::gfx::draw_call_params draw_calls = {};
     {
         draw_calls.type         = melon::gfx::MELON_TRIANGLES;
         draw_calls.instances    = 1;
