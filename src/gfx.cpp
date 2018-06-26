@@ -62,113 +62,161 @@ typedef struct
 
 typedef struct
 {
-    memory_arena    memory;
-    draw_resources  current_resources;
-    pipeline_handle current_pipeline;
-
-    bool  submitting;
-    cnd_t cond;
-    mtx_t mtx;
-
-    bool recording;
-} command_buffer;
-
-typedef struct
-{
     buffer_handle buffer;
     size_t        binding;
 } bind_vertex_buffer_data;
 
+typedef enum
+{
+    BIND_VERTEX_BUFFER,
+    BIND_INDEX_BUFFER,
+    BIND_PIPELINE,
+    DRAW
+} command_type;
+
+typedef struct command
+{
+    command_type type;
+
+    void*    data;
+    command* next;
+} command;
+
 typedef struct
 {
-    enum
-    {
-        BIND_VERTEX_BUFFER,
-        BIND_INDEX_BUFFER,
-        BIND_PIPELINE,
-        DRAW
-    } type;
+    memory_arena    memory;
+    draw_resources  current_resources;
+    pipeline_handle current_pipeline;
 
-    void* data;
-} command;
+    bool  consuming;
+    bool  recording;
+    mtx_t mtx;
+
+    command* first;
+    command* last;
+} command_buffer;
 
 void cb_create(device* device, command_buffer* cb, size_t block_size)
 {
-    cb->submitting = false;
-    cnd_init(&cb->cond);
+    cb->recording = false;
+    cb->consuming = false;
     mtx_init(&cb->mtx, mtx_plain);
 
-    cb->recording = false;
-
     cb->memory = create_arena(block_size, MELON_DEFAULT_ALIGN, &device->allocator);
+
+    cb->last = NULL;
 }
 
 void cb_destroy(device* device, command_buffer* cb)
 {
-    cnd_destroy(&cb->cond);
     mtx_destroy(&cb->mtx);
 
     destroy_arena(&cb->memory);
 }
 
-void cb_begin(command_buffer* cb)
+void cb_begin_recording(command_buffer* cb)
 {
     // Attempt to pass submission fence, ie: do not begin recording until submission involving this command
     // buffer is completed
     mtx_lock(&cb->mtx);
-    while (cb->submitting)
-    {
-        cnd_wait(&cb->cond, &cb->mtx);
-    }
-
     cb->recording = true;
+    cb->consuming = false;
 }
 
-void cb_end(command_buffer* cb)
+void cb_end_recording(command_buffer* cb)
 {
     // Block any operations until submission is complete
     cb->recording = false;
     mtx_unlock(&cb->mtx);
 }
 
+void* cb_push_command(command_buffer* cb, size_t size, size_t align, command_type type)
+{
+    command* cmd = MELON_ARENA_PUSH_STRUCT(cb->memory, command);
+    cmd->type    = type;
+    cmd->data    = MELON_ARENA_PUSH(cb->memory, size, align);
+    cmd->next    = NULL;
+
+    if (cb->last)
+        cb->last->next = cmd;
+    cb->last = cmd;
+
+    return cmd->data;
+}
+
 void cb_bind_vertex_buffer(command_buffer* cb, buffer_handle buffer, size_t binding)
 {
     if (!cb->recording)
         return;
+
+    bind_vertex_buffer_data* bind_data = (bind_vertex_buffer_data*) cb_push_command(
+        cb, sizeof(bind_vertex_buffer_data), MELON_DEFAULT_ALIGN, BIND_VERTEX_BUFFER);
+    bind_data->binding = binding;
 }
 
 void cb_bind_index_buffer(command_buffer* cb, buffer_handle buffer)
 {
     if (!cb->recording)
         return;
+
+    buffer_handle* ib_buffer
+        = (buffer_handle*) cb_push_command(cb, sizeof(buffer_handle), MELON_DEFAULT_ALIGN, BIND_INDEX_BUFFER);
+    *ib_buffer = buffer;
 }
 
 void cb_bind_pipeline(command_buffer* cb, pipeline_handle pipeline)
 {
     if (!cb->recording)
         return;
+
+    pipeline_handle* pipeline_ptr
+        = (pipeline_handle*) cb_push_command(cb, sizeof(pipeline_handle), MELON_DEFAULT_ALIGN, BIND_PIPELINE);
+    *pipeline_ptr = pipeline;
 }
 
-void cb_draw(command_buffer* cb, const draw_call_params* draw_call_params)
+void cb_draw(command_buffer* cb, const draw_call_params* params)
 {
     if (!cb->recording)
         return;
+
+    draw_call_params* dc = (draw_call_params*) cb_push_command(cb, sizeof(draw_call_params), MELON_DEFAULT_ALIGN, DRAW);
+    *dc                  = *params;
 }
 
 void cb_reset(command_buffer* cb)
 {
-    if (!cb->recording)
-        return;
-
     mtx_lock(&cb->mtx);
-    while (cb->submitting)
-    {
-        cnd_wait(&cb->cond, &cb->mtx);
-    }
 
     // Reset command buffer
+    arena_reset(&cb->memory);
 
     mtx_unlock(&cb->mtx);
+}
+
+void cb_begin_consuming(command_buffer* cb) 
+{ 
+    mtx_lock(&cb->mtx); 
+    cb->consuming = true;
+    cb->recording = false;
+}
+
+void cb_end_consuming(command_buffer* cb) 
+{ 
+    cb->consuming = false;
+    mtx_unlock(&cb->mtx); 
+}
+
+command* cb_pop_command(command_buffer* cb) 
+{
+    if (!cb->consuming)
+        return NULL;
+
+    command* result = cb->first;
+
+    if (result)
+        cb->first = result->next;
+
+    return result;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -534,8 +582,8 @@ MELON_GFX_EXECUTE_DRAW_GROUPS(execute_draw_groups_gl3)
             }
             else
             {
-                glDrawArraysInstanced(gl_draw_type(draw_call->type), draw_call->base_vertex,
-                                      draw_call->num_vertices, draw_call->instances);
+                glDrawArraysInstanced(gl_draw_type(draw_call->type), draw_call->base_vertex, draw_call->num_vertices,
+                                      draw_call->instances);
             }
         }
     }
