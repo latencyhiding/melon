@@ -257,6 +257,50 @@ extern delete_pipeline_f* delete_pipeline;
 typedef MELON_GFX_EXECUTE_DRAW_GROUPS(execute_draw_groups_f);
 extern execute_draw_groups_f* execute_draw_groups;
 
+#define MELON_GFX_CREATE_COMMAND_BUFFER(name) melon::gfx::command_buffer_handle name()
+typedef MELON_GFX_CREATE_COMMAND_BUFFER(create_command_buffer_f);
+extern create_command_buffer_f* create_command_buffer;
+
+#define MELON_GFX_DELETE_COMMAND_BUFFER(name) void name(melon::gfx::command_buffer_handle cb)
+typedef MELON_GFX_DELETE_COMMAND_BUFFER(delete_command_buffer_f);
+extern delete_command_buffer_f* delete_command_buffer;
+
+#define MELON_GFX_CB_BEGIN_RECORDING(name) void name(melon::gfx::command_buffer_handle cb)
+typedef MELON_GFX_CB_BEGIN_RECORDING(cb_begin_recording_f);
+extern cb_begin_recording_f* cb_begin_recording;
+
+#define MELON_GFX_CB_END_RECORDING(name) void name(melon::gfx::command_buffer_handle cb)
+typedef MELON_GFX_CB_END_RECORDING(cb_end_recording_f);
+extern cb_end_recording_f* cb_end_recording;
+
+#define MELON_GFX_CB_BIND_VERTEX_BUFFER(name) \
+    void name(melon::gfx::command_buffer_handle cb, melon::gfx::buffer_handle buffer, size_t binding)
+typedef MELON_GFX_CB_BIND_VERTEX_BUFFER(cb_bind_vertex_buffer_f);
+extern cb_bind_vertex_buffer_f* cb_bind_vertex_buffer;
+
+#define MELON_GFX_CB_BIND_INDEX_BUFFER(name) \
+    void name(melon::gfx::command_buffer_handle cb, melon::gfx::buffer_handle buffer)
+typedef MELON_GFX_CB_BIND_INDEX_BUFFER(cb_bind_index_buffer_f);
+extern cb_bind_index_buffer_f* cb_bind_index_buffer;
+
+#define MELON_GFX_CB_BIND_PIPELINE(name) \
+    void name(melon::gfx::command_buffer_handle cb, melon::gfx::pipeline_handle pipeline)
+typedef MELON_GFX_CB_BIND_PIPELINE(cb_bind_pipeline_f);
+extern cb_bind_pipeline_f* cb_bind_pipeline;
+
+#define MELON_GFX_CB_DRAW(name) \
+    void name(melon::gfx::command_buffer_handle cb, const melon::gfx::draw_call_params* params)
+typedef MELON_GFX_CB_DRAW(cb_draw_f);
+extern cb_draw_f* cb_draw;
+
+#define MELON_GFX_CB_RESET(name) void name(melon::gfx::command_buffer_handle cb)
+typedef MELON_GFX_CB_RESET(cb_reset_f);
+extern cb_reset_f* cb_reset;
+
+#define MELON_GFX_CB_SUBMIT(name) void name(melon::gfx::command_buffer_handle* command_buffers, size_t num_cbs)
+typedef MELON_GFX_CB_SUBMIT(submit_commands_f);
+extern submit_commands_f* submit_commands;
+
 }    // namespace gfx
 }    // namespace melon
 
