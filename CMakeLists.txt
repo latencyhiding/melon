@@ -43,12 +43,16 @@ set(CMAKE_CXX_STANDARD 11)
 
 # engine lib
 include_directories(include)
-add_library(melon STATIC
-                        src/core.cpp
-                        src/gfx.cpp)
 
-## define lib names
-target_link_libraries(melon ${OPENGL_LIBRARIES} glfw glad tinycthread header_only_impls)
+add_library(melon_core STATIC src/core.cpp)
+target_link_libraries(melon_core tinycthread header_only_impls)
+target_include_directories(melon_core PUBLIC include)
+
+add_library(melon_gfx STATIC src/gfx.cpp)
+target_link_libraries(melon_gfx melon_core ${OPENGL_LIBRARIES} glfw glad)
+target_include_directories(melon_gfx PUBLIC include)
+
+set(MELON_LIBS melon_core melon_gfx)
 
 ## tests
 add_subdirectory(test)
