@@ -1,12 +1,10 @@
 cmake_minimum_required(VERSION 3.10)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-project(${APP_NAME} CXX)
+project(melon CXX)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+include(CTest) 
 
 set(CMAKE_C_FLAGS_DEBUG "-DTZ_DEBUG")
-
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin )
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin )
 
 ## Third party libs
 # glad 
@@ -41,17 +39,19 @@ include_directories(thirdparty)
 
 ## libs
 set(CMAKE_CXX_FLAGS_DEBUG  "-g")
-set (CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 11)
+
 # engine lib
-set(LIB_NAME melon)
 include_directories(include)
 add_library(${LIB_NAME} STATIC
                         src/core.cpp
                         src/gfx.cpp)
 
 ## define lib names
-set(LIBS ${OPENGL_LIBRARIES} ${LIB_NAME} glfw glad tinycthread header_only_impls)
+set(LIBS ${OPENGL_LIBRARIES} melon glfw glad tinycthread header_only_impls)
+
 ## tests
-enable_testing()
 add_subdirectory(test)
 
+## examples
+add_subdirectory(examples)

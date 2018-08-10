@@ -94,9 +94,9 @@ int main(int argc, char** argv)
 
     melon::gfx::init(NULL);
 
-    const char* vertex_source = load_text_file("../assets/shaders/passthrough.vert");
+    const char* vertex_source = load_text_file("../../assets/shaders/passthrough.vert");
     MELON_ASSERT(vertex_source);
-    const char* fragment_source = load_text_file("../assets/shaders/passthrough.frag");
+    const char* fragment_source = load_text_file("../../assets/shaders/passthrough.frag");
     MELON_ASSERT(fragment_source);
 
     melon::gfx::shader_params shader_params = {};

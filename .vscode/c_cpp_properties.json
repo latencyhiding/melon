@@ -9,7 +9,7 @@
                 "limitSymbolsToIncludedHeaders": true
             },
             "includePath": [
-                "${workspaceFolder}"
+                "&{workspaceFolder}/include"
             ],
             "defines": [
                 "_DEBUG",
@@ -30,7 +30,7 @@
                 "limitSymbolsToIncludedHeaders": true
             },
             "includePath": [
-                "${workspaceFolder}"
+                "&{workspaceFolder}/include"
             ],
             "defines": [
                 "_DEBUG",
