@@ -1,6 +1,6 @@
+project(melon)
 cmake_minimum_required(VERSION 3.10)
 
-project(melon CXX)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 include(CTest) 
 
@@ -43,12 +43,12 @@ set(CMAKE_CXX_STANDARD 11)
 
 # engine lib
 include_directories(include)
-add_library(${LIB_NAME} STATIC
+add_library(melon STATIC
                         src/core.cpp
                         src/gfx.cpp)
 
 ## define lib names
-set(LIBS ${OPENGL_LIBRARIES} melon glfw glad tinycthread header_only_impls)
+target_link_libraries(melon ${OPENGL_LIBRARIES} glfw glad tinycthread header_only_impls)
 
 ## tests
 add_subdirectory(test)
