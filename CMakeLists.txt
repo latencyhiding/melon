@@ -49,7 +49,7 @@ target_include_directories(header_only_impls PUBLIC thirdparty)
 file(GLOB CORE_SOURCES "src/core/*.cpp")
 add_library(melon_core ${CORE_SOURCES})
 target_link_libraries(melon_core tinycthread header_only_impls)
-target_compile_definitions(melon_core PRIVATE MELON_USE_OPENGL $<$<CONFIG:DEBUG>:MELON_DEBUG>)
+target_compile_definitions(melon_core PRIVATE $<$<CONFIG:DEBUG>:MELON_DEBUG>)
 target_include_directories(melon_core 
                            PUBLIC include/core
                                   include)
