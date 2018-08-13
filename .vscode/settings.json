@@ -1,7 +1,4 @@
 {
-    "files.associations": {
-        "memory": "c",
-        "error.h": "c"
-    },
     "editor.tabSize": 4,
+    "C_Cpp.configurationWarnings": "Disabled",
 }

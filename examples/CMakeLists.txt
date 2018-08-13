@@ -1,6 +1,2 @@
-function(create_example EXAMPLE_NAME EXAMPLE_SOURCES)
-  add_executable(${EXAMPLE_NAME} ${EXAMPLE_SOURCES})
-  target_link_libraries(${EXAMPLE_NAME} ${MELON_LIBS})
-endfunction(create_example)
-
-create_example(triangle triangle/main.cpp)
+add_executable(triangle triangle/main.cpp)
+target_link_libraries(triangle melon_gfx)

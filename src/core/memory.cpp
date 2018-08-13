@@ -1,4 +1,8 @@
-#include <melon/core.hpp>
+#include <melon/core/memory.h>
+#include <melon/core/error.h>
+
+#include <stdarg.h>
+#include <stdlib.h>
 #include <string.h>
 
 namespace melon
@@ -127,22 +131,6 @@ void arena_reset(memory_arena* arena)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Default logging callbacks
-////////////////////////////////////////////////////////////////////////////////
-
-#include <stdio.h>
-
-static void default_logger(const char* message, ...)
-{
-    va_list arg_list;
-    va_start(arg_list, message);
-    vfprintf(stderr, message, arg_list);
-    va_end(arg_list);
-}
-
-logger_callback_fp logger_callback = default_logger;
-
-////////////////////////////////////////////////////////////////////////////////
 // Pool implementation
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -159,11 +147,11 @@ void create_index_pool(index_pool* pool, size_t capacity, const allocator_api* a
 
 void delete_index_pool(index_pool* pool) { MELON_FREE(pool->allocator, pool->free_indices); }
 
-pool_index pool_create_index(index_pool* pool)
+pool_handle pool_create_index(index_pool* pool)
 {
-    pool_index new_index = pool_gen_invalid_index();
+    pool_handle new_index = pool_gen_invalid_index();
 
-    pool_index index;
+    pool_handle index;
 
     // Pop aligned_free indices off the stack until one with a valid
     // generation is found
@@ -188,13 +176,13 @@ pool_index pool_create_index(index_pool* pool)
     return new_index;
 }
 
-bool pool_index_is_valid(index_pool* pool, pool_index index) { return (index < pool->capacity); }
+bool pool_handle_is_valid(index_pool* pool, pool_handle index) { return (index < pool->capacity); }
 
-pool_index pool_gen_invalid_index() { return ~0; }
+pool_handle pool_gen_invalid_index() { return ~0; }
 
-bool pool_delete_index(index_pool* pool, pool_index index)
+bool pool_delete_index(index_pool* pool, pool_handle index)
 {
-    if (!pool_index_is_valid(pool, index))
+    if (!pool_handle_is_valid(pool, index))
         return false;
 
     // if the number of aligned_free indices >= the capacity, the pool is
@@ -202,9 +190,9 @@ bool pool_delete_index(index_pool* pool, pool_index index)
     if (pool->num_free_indices >= pool->capacity)
         return false;
 
-#ifdef DEBUG
+#ifdef MELON_DEBUG
     for (size_t i = 0; i < pool->num_free_indices; i++)
-        ASSERT(pool->free_indices[i] != index, "Cannot double aligned_free indices\n");
+        MELON_ASSERT(pool->free_indices[i] != index, "Cannot double aligned_free indices\n");
 #endif
 
     pool->free_indices[pool->num_free_indices++] = index;
@@ -231,9 +219,9 @@ void delete_pool_vector(pool_vector* pv)
     MELON_FREE(pv->allocator, pv->data);
 }
 
-pool_index pool_vector_push(pool_vector* pv, void* val)
+pool_handle pool_vector_push(pool_vector* pv, void* val)
 {
-    pool_index index = pool_create_index(&pv->pool);
+    pool_handle index = pool_create_index(&pv->pool);
 
     if (index < pv->capacity)
     {

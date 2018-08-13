@@ -5,8 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <melon/error.hpp>
-#include <melon/gfx.hpp>
+#include <melon/core/error.h>
+#include <melon/gfx.h>
 
 static void error_callback(int error, const char* description) { fprintf(stderr, "%s", description); }
 
@@ -92,12 +92,22 @@ int main(int argc, char** argv)
 
     glfwSetKeyCallback(window, key_callback);
 
-    melon::gfx::init(NULL);
+    melon::gfx::init();
 
-    const char* vertex_source = load_text_file("../../assets/shaders/passthrough.vert");
-    MELON_ASSERT(vertex_source);
-    const char* fragment_source = load_text_file("../../assets/shaders/passthrough.frag");
-    MELON_ASSERT(fragment_source);
+    const char* vertex_source
+        = "#version 330\n"
+          "layout(location = 0) in vec2 position;"
+          "void main()"
+          "{"
+          "    gl_Position = vec4(position, 0.0f, 1.0f);"
+          "}";
+    const char* fragment_source
+        = "#version 330\n"
+          "out vec4 out_color;"
+          "void main()"
+          "{"
+          "    out_color = vec4(0.0f, 0.5f, 0.2f, 1.0f);"
+          "}";
 
     melon::gfx::shader_params shader_params = {};
     {
@@ -112,9 +122,6 @@ int main(int argc, char** argv)
     }
 
     melon::gfx::shader_handle shader_program = melon::gfx::create_shader(&shader_params);
-
-    free((void*) vertex_source);
-    free((void*) fragment_source);
 
     float vertices[] = { -0.5f, -0.5f, 0.5f, -0.5f, 0.0f, 0.5f };
 

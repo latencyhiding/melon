@@ -1,10 +1,7 @@
-#ifndef MELON_GFX_H
-#define MELON_GFX_H
+#ifndef MELON_GFX_BACKEND_H
+#define MELON_GFX_BACKEND_H
 
-#include <stddef.h>
-#include <stdint.h>
-
-#include <melon/core.hpp>
+#include <melon/core.h>
 
 /**
  TODO:
@@ -52,7 +49,7 @@ MELON_GFX_HANDLE(shader_handle);
 MELON_GFX_HANDLE(pipeline_handle);
 MELON_GFX_HANDLE(command_buffer_handle);
 
-#define MELON_GFX_GEN_PARAMS(type) ((type) { 0 })
+#define MELON_GFX_GEN_PARAMS(type) ((type){ 0 })
 
 // Basic vertex data types
 typedef enum
@@ -195,111 +192,91 @@ typedef struct
 typedef struct
 {
     device_resource_count resource_count;
-    const allocator_api*      allocator;
-
-    enum
-    {
-        OPENGL3
-    } graphics_api;
+    allocator_api  allocator;
 } device_params;
 
-////////////////////////////////////////////////////////////////////////////////
-// Operation Types
-// - Types used to operate the backend
-////////////////////////////////////////////////////////////////////////////////
+typedef struct
+{
+    pipeline_handle pipeline;
+    draw_resources  resources;
+} draw_state;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Functions
 ////////////////////////////////////////////////////////////////////////////////
 
-device_params default_device_params();
+const device_params* default_gfx_device_params();
+size_t vertex_data_type_bytes(const vertex_data_type type);
+
 /* create_device - creates an opaque pointer to a device
  *  device_config - parameter struct containing the parameters of a device.
  *                  default parameters will be used if this is NULL.
  */
 
-#define MELON_GFX_CREATE_DEVICE(name) void name(melon::gfx::device_params* device_config)
-typedef MELON_GFX_CREATE_DEVICE(create_device_f);
-void init(device_params* device_config);
+#define MELON_GFX_CREATE_DEVICE(name) void name(const melon::gfx::device_params* device_config)
+void init(const melon::gfx::device_params* device_config = default_gfx_device_params());
 
 #define MELON_GFX_DELETE_DEVICE(name) void name()
-typedef MELON_GFX_DELETE_DEVICE(delete_device_f);
-void destroy();
+MELON_GFX_DELETE_DEVICE(destroy);
 
 #define MELON_GFX_CREATE_SHADER(name) \
     melon::gfx::shader_handle name(const melon::gfx::shader_params* shader_create_info)
-typedef MELON_GFX_CREATE_SHADER(create_shader_f);
-extern create_shader_f* create_shader;
+MELON_GFX_CREATE_SHADER(create_shader);
 
 #define MELON_GFX_DELETE_SHADER(name) void name(melon::gfx::shader_handle shader)
-typedef MELON_GFX_DELETE_SHADER(delete_shader_f);
-extern delete_shader_f* delete_shader;
+MELON_GFX_DELETE_SHADER(delete_shader);
 
 #define MELON_GFX_CREATE_BUFFER(name) \
     melon::gfx::buffer_handle name(const melon::gfx::buffer_params* buffer_create_info)
-typedef MELON_GFX_CREATE_BUFFER(create_buffer_f);
-extern create_buffer_f* create_buffer;
+MELON_GFX_CREATE_BUFFER(create_buffer);
 
 #define MELON_GFX_DELETE_BUFFER(name) void name(melon::gfx::buffer_handle buffer)
-typedef MELON_GFX_DELETE_BUFFER(delete_buffer_f);
-extern delete_buffer_f* delete_buffer;
+MELON_GFX_DELETE_BUFFER(delete_buffer);
 
 #define MELON_GFX_CREATE_PIPELINE(name) \
     melon::gfx::pipeline_handle name(const melon::gfx::pipeline_params* pipeline_create_info)
-typedef MELON_GFX_CREATE_PIPELINE(create_pipeline_f);
-extern create_pipeline_f* create_pipeline;
+MELON_GFX_CREATE_PIPELINE(create_pipeline);
 
 #define MELON_GFX_DELETE_PIPELINE(name) void name(melon::gfx::pipeline_handle pipeline)
-typedef MELON_GFX_DELETE_PIPELINE(delete_pipeline_f);
-extern delete_pipeline_f* delete_pipeline;
+MELON_GFX_DELETE_PIPELINE(delete_pipeline);
 
 #define MELON_GFX_EXECUTE_DRAW_GROUPS(name) void name(melon::gfx::draw_group* draw_groups, size_t num_draw_groups)
-typedef MELON_GFX_EXECUTE_DRAW_GROUPS(execute_draw_groups_f);
-extern execute_draw_groups_f* execute_draw_groups;
+MELON_GFX_EXECUTE_DRAW_GROUPS(execute_draw_groups);
 
 #define MELON_GFX_CREATE_COMMAND_BUFFER(name) melon::gfx::command_buffer_handle name()
-typedef MELON_GFX_CREATE_COMMAND_BUFFER(create_command_buffer_f);
-extern create_command_buffer_f* create_command_buffer;
+MELON_GFX_CREATE_COMMAND_BUFFER(create_command_buffer);
 
 #define MELON_GFX_DELETE_COMMAND_BUFFER(name) void name(melon::gfx::command_buffer_handle cb)
-typedef MELON_GFX_DELETE_COMMAND_BUFFER(delete_command_buffer_f);
-extern delete_command_buffer_f* delete_command_buffer;
+MELON_GFX_DELETE_COMMAND_BUFFER(delete_command_buffer);
 
 #define MELON_GFX_CB_BEGIN_RECORDING(name) void name(melon::gfx::command_buffer_handle cb)
-typedef MELON_GFX_CB_BEGIN_RECORDING(cb_begin_recording_f);
-extern cb_begin_recording_f* cb_begin_recording;
+MELON_GFX_CB_BEGIN_RECORDING(begin_recording);
 
 #define MELON_GFX_CB_END_RECORDING(name) void name(melon::gfx::command_buffer_handle cb)
-typedef MELON_GFX_CB_END_RECORDING(cb_end_recording_f);
-extern cb_end_recording_f* cb_end_recording;
+MELON_GFX_CB_END_RECORDING(end_recording);
 
 #define MELON_GFX_CB_BIND_VERTEX_BUFFER(name) \
     void name(melon::gfx::command_buffer_handle cb, melon::gfx::buffer_handle buffer, size_t binding)
-typedef MELON_GFX_CB_BIND_VERTEX_BUFFER(cb_bind_vertex_buffer_f);
-extern cb_bind_vertex_buffer_f* cb_bind_vertex_buffer;
+MELON_GFX_CB_BIND_VERTEX_BUFFER(bind_vertex_buffer);
 
 #define MELON_GFX_CB_BIND_INDEX_BUFFER(name) \
     void name(melon::gfx::command_buffer_handle cb, melon::gfx::buffer_handle buffer)
-typedef MELON_GFX_CB_BIND_INDEX_BUFFER(cb_bind_index_buffer_f);
-extern cb_bind_index_buffer_f* cb_bind_index_buffer;
+MELON_GFX_CB_BIND_INDEX_BUFFER(bind_index_buffer);
 
 #define MELON_GFX_CB_BIND_PIPELINE(name) \
     void name(melon::gfx::command_buffer_handle cb, melon::gfx::pipeline_handle pipeline)
-typedef MELON_GFX_CB_BIND_PIPELINE(cb_bind_pipeline_f);
-extern cb_bind_pipeline_f* cb_bind_pipeline;
+MELON_GFX_CB_BIND_PIPELINE(bind_pipeline);
 
 #define MELON_GFX_CB_DRAW(name) \
     void name(melon::gfx::command_buffer_handle cb, const melon::gfx::draw_call_params* params)
-typedef MELON_GFX_CB_DRAW(cb_draw_f);
-extern cb_draw_f* cb_draw;
+MELON_GFX_CB_DRAW(draw);
 
 #define MELON_GFX_CB_RESET(name) void name(melon::gfx::command_buffer_handle cb)
-typedef MELON_GFX_CB_RESET(cb_reset_f);
-extern cb_reset_f* cb_reset;
+MELON_GFX_CB_RESET(reset);
 
-#define MELON_GFX_CB_SUBMIT(name) void name(melon::gfx::command_buffer_handle* command_buffers, size_t num_cbs)
-typedef MELON_GFX_CB_SUBMIT(submit_commands_f);
-extern submit_commands_f* submit_commands;
+#define MELON_GFX_CB_SUBMIT(name) \
+    void name(melon::gfx::command_buffer_handle* command_buffers, size_t num_cbs)
+MELON_GFX_CB_SUBMIT(submit_command_buffers);
 
 }    // namespace gfx
 }    // namespace melon

@@ -1,15 +1,7 @@
-#ifndef MELON_CORE_H
-#define MELON_CORE_H
+#ifndef MELON_MEMORY_H
+#define MELON_MEMORY_H
 
-// Standard headers
-#include <stdarg.h>
-#include <stdbool.h>
 #include <stdint.h>
-#include <stdlib.h>
-
-#include <tinycthread.h>
-
-#include <melon/error.hpp>
 
 namespace melon
 {
@@ -51,15 +43,6 @@ typedef struct
 #define MELON_ALLOC(allocator, size, align) (allocator.alloc(allocator.user_data, size, align))
 #define MELON_REALLOC(allocator, ptr, size, align) (allocator.realloc(allocator.user_data, ptr, size, align))
 #define MELON_FREE(allocator, ptr) (allocator.dealloc(allocator.user_data, ptr))
-
-typedef void (*logger_callback_fp)(const char* message, ...);
-extern logger_callback_fp logger_callback;
-
-#ifdef MELON_DEBUG
-#define MELON_LOG(...) logger_callback(__VA_ARGS__)
-#else
-#define MELON_LOG(...)
-#endif
 
 // Returns the default callbacks for our backend
 const allocator_api* default_cb_allocator();
@@ -115,25 +98,31 @@ void  arena_reset(memory_arena* arena);
 ////////////////////////////////////////////////////////////////////////////////
 // pool - an index pool with a stack-like behavior. Indices are allocated in
 // a FIFO order.
+// 
+// TODO: 
+//  - Memory corruptions checks: check for double frees
+//    - ASSERT on double free
+//    - ASSERT when provided capacity exceeds max bits associated with index
+//    - Determine number of bits to allocate for index bits and generation bits
 ////////////////////////////////////////////////////////////////////////////////
 
-typedef size_t pool_index;
+typedef size_t pool_handle;
 
 typedef struct
 {
-    pool_index* free_indices;
-    size_t      capacity;
-    size_t      num_free_indices;
+    pool_handle* free_indices;
+    size_t       capacity;
+    size_t       num_free_indices;
 
     allocator_api allocator;
 } index_pool;
 
-void       create_index_pool(index_pool* pool, size_t capacity, const allocator_api* allocator);
-void       delete_index_pool(index_pool* pool);
-pool_index pool_create_index(index_pool* pool);
-bool       pool_index_is_valid(index_pool* pool, pool_index id);
-pool_index pool_gen_invalid_index();
-bool       pool_delete_index(index_pool* pool, pool_index index);
+void        create_index_pool(index_pool* pool, size_t capacity, const allocator_api* allocator);
+void        delete_index_pool(index_pool* pool);
+pool_handle pool_create_index(index_pool* pool);
+bool        pool_handle_is_valid(index_pool* pool, pool_handle id);
+pool_handle pool_gen_invalid_index();
+bool        pool_delete_index(index_pool* pool, pool_handle index);
 
 ////////////////////////////////////////////////////////////////////////////////
 // pool_vector - a vector that uses an id pool for access
@@ -150,31 +139,31 @@ typedef struct
     allocator_api allocator;
 } pool_vector;
 
-void       create_pool_vector(pool_vector* pv, size_t capacity, size_t element_size, const allocator_api* allocator);
-void       delete_pool_vector(pool_vector* pv);
-pool_index pool_vector_push(pool_vector* pv, void* val);
+void        create_pool_vector(pool_vector* pv, size_t capacity, size_t element_size, const allocator_api* allocator);
+void        delete_pool_vector(pool_vector* pv);
+pool_handle pool_vector_push(pool_vector* pv, void* val);
 
-#define MELON_POOL_VECTOR(name, T)                                                                                    \
-    typedef struct                                                                                                    \
-    {                                                                                                                 \
-        pool_vector pv;                                                                                               \
-    } name##_pool;                                                                                                    \
-    static inline void create_##name##_pool(name##_pool* pv, size_t capacity, const allocator_api* allocator)         \
-    {                                                                                                                 \
-        create_pool_vector(&pv->pv, capacity, sizeof(T), allocator);                                                  \
-    }                                                                                                                 \
-    static inline void       delete_##name##_pool(name##_pool* pv) { delete_pool_vector(&pv->pv); }                   \
-    static inline T          name##_pool_get(name##_pool* pv, pool_index id) { return ((T*) pv->pv.data)[id]; }       \
-    static inline T*         name##_pool_get_p(name##_pool* pv, pool_index id) { return ((T*) pv->pv.data) + id; }    \
-    static inline void       name##_pool_set(name##_pool* pv, pool_index id, T val) { ((T*) pv->pv.data)[id] = val; } \
-    static inline pool_index name##_pool_push(name##_pool* pv, T val) { return pool_vector_push(&pv->pv, &val); }     \
-    static inline bool       name##_pool_delete(name##_pool* pv, pool_index index)                                    \
-    {                                                                                                                 \
-        return pool_delete_index(&pv->pv.pool, index);                                                                \
-    }                                                                                                                 \
-    static inline bool name##_pool_index_is_valid(name##_pool* pv, pool_index index)                                  \
-    {                                                                                                                 \
-        return pool_index_is_valid(&pv->pv.pool, index);                                                              \
+#define MELON_POOL_VECTOR(name, T)                                                                                      \
+    typedef struct                                                                                                      \
+    {                                                                                                                   \
+        pool_vector pv;                                                                                                 \
+    } name##_pool;                                                                                                      \
+    static inline void create_##name##_pool(name##_pool* pv, size_t capacity, const allocator_api* allocator)           \
+    {                                                                                                                   \
+        create_pool_vector(&pv->pv, capacity, sizeof(T), allocator);                                                    \
+    }                                                                                                                   \
+    static inline void        delete_##name##_pool(name##_pool* pv) { delete_pool_vector(&pv->pv); }                    \
+    static inline T           name##_pool_get(name##_pool* pv, pool_handle id) { return ((T*) pv->pv.data)[id]; }       \
+    static inline T*          name##_pool_get_p(name##_pool* pv, pool_handle id) { return ((T*) pv->pv.data) + id; }    \
+    static inline void        name##_pool_set(name##_pool* pv, pool_handle id, T val) { ((T*) pv->pv.data)[id] = val; } \
+    static inline pool_handle name##_pool_push(name##_pool* pv, T val) { return pool_vector_push(&pv->pv, &val); }      \
+    static inline bool        name##_pool_delete(name##_pool* pv, pool_handle index)                                    \
+    {                                                                                                                   \
+        return pool_delete_index(&pv->pv.pool, index);                                                                  \
+    }                                                                                                                   \
+    static inline bool name##_pool_handle_is_valid(name##_pool* pv, pool_handle index)                                  \
+    {                                                                                                                   \
+        return pool_handle_is_valid(&pv->pv.pool, index);                                                               \
     }
 
 }    // namespace melon
