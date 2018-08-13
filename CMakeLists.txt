@@ -71,6 +71,7 @@ target_include_directories(melon_gfx
 set(MELON_LIBS melon_core melon_gfx)
 
 ## tests
+add_subdirectory(thirdparty/googletest)
 add_subdirectory(test)
 
 ## examples
