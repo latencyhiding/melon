@@ -35,6 +35,7 @@ target_include_directories(tinycthread PUBLIC thirdparty/tinycthread)
 
 # PhysFX
 add_subdirectory(thirdparty/physfs)
+target_include_directories(physfs PUBLIC thirdparty/physfs/src)
 
 # header only stuff
 add_library(header_only_impls thirdparty/header_only_impls.c)
