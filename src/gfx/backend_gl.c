@@ -3,12 +3,6 @@
 #include <melon/gfx.h>
 #include "gfx_commands.h"
 
-namespace melon
-{
-
-namespace gfx
-{
-
 ////////////////////////////////////////////////////////////////////////////////
 // OPENGL
 ////////////////////////////////////////////////////////////////////////////////
@@ -17,39 +11,9 @@ namespace gfx
 #define MELON_GL_INVALID_ID 0
 #define MELON_GL_HANDLE(handle) ((GLuint) handle.data)
 
-typedef struct
-{
-    int    location;
-    size_t buffer_binding;
-    size_t offset;
-    GLenum data_type;
-    int    size;
-    int    divisor;
-} vertex_attrib_gl;
+melon_gfx_handle melon_gfx_invalid_handle = {0};
 
-typedef struct
-{
-    shader_handle    shader_program;
-    vertex_attrib_gl attribs[MELON_MAX_ATTRIBUTES];
-    size_t           num_attribs;
-    size_t           stride;
-} pipeline_gl;
-
-MELON_POOL_VECTOR(gl_pipeline, pipeline_gl)
-MELON_POOL_VECTOR(command_buffer, commands::command_buffer)
-
-typedef struct
-{
-    gl_pipeline_pool    pipelines;
-    command_buffer_pool command_buffers;
-    GLuint              dummy_vao;
-
-    device_params config;
-} device_gl;
-
-static device_gl g_device;
-
-static GLenum gl_buffer_usage(buffer_usage usage)
+static GLenum gl_melon_buffer_usage(melon_buffer_usage usage)
 {
     switch (usage)
     {
@@ -60,7 +24,7 @@ static GLenum gl_buffer_usage(buffer_usage usage)
     }
 }
 
-static GLenum gl_data_format(vertex_data_type type)
+static GLenum gl_data_format(melon_vertex_data_type type)
 {
     switch (type)
     {
@@ -76,22 +40,57 @@ static GLenum gl_data_format(vertex_data_type type)
     }
 }
 
-MELON_GFX_CREATE_DEVICE(init)
+typedef struct
+{
+    int    location;
+    size_t buffer_binding;
+    size_t offset;
+    GLenum data_type;
+    int    size;
+    int    divisor;
+} vertex_attrib_gl;
+
+typedef struct
+{
+    melon_shader_handle shader_program;
+    vertex_attrib_gl  attribs[MELON_GFX_MAX_ATTRIBUTES];
+    size_t            num_attribs;
+    size_t            stride;
+} pipeline_gl;
+
+MELON_HANDLE_MAP_TYPEDEF(pipeline_gl)
+MELON_HANDLE_MAP_TYPEDEF(cb_command_buffer)
+
+typedef struct
+{
+    melon_map_pipeline_gl       pipelines;
+    melon_map_cb_command_buffer command_buffers;
+    GLuint                              dummy_vao;
+
+    melon_device_params config;
+} device_gl;
+
+static device_gl g_device;
+
+MELON_GFX_CREATE_DEVICE(melon_gfx_init)
 {
     g_device.config = *device_config;
 
-    create_gl_pipeline_pool(&g_device.pipelines, g_device.config.resource_count.max_pipelines,
-                            &g_device.config.allocator);
+    melon_create_map(&g_device.pipelines, g_device.config.resource_count.max_pipelines,
+                             &g_device.config.allocator, false);
+    melon_create_map(&g_device.command_buffers, g_device.config.resource_count.max_command_buffers,
+                             &g_device.config.allocator, false);
+
     g_device.dummy_vao = 0;
 
     glGenVertexArrays(1, &g_device.dummy_vao);
     glBindVertexArray(g_device.dummy_vao);
 }
 
-MELON_GFX_DELETE_DEVICE(destroy) { glDeleteVertexArrays(1, &g_device.dummy_vao); }
+MELON_GFX_DELETE_DEVICE(melon_gfx_destroy) { glDeleteVertexArrays(1, &g_device.dummy_vao); }
 
-static GLuint compile_shader(const allocator_api* allocator, GLenum type,
-                             const shader_stage_params* shader_stage_create_info)
+static GLuint compile_shader(const melon_allocator_api* allocator, GLenum type,
+                             const melon_shader_stage_params* shader_stage_create_info)
 {
     if (!shader_stage_create_info->source)
         return 0;
@@ -127,11 +126,12 @@ static GLuint compile_shader(const allocator_api* allocator, GLenum type,
     return shader_stage;
 }
 
-MELON_GFX_CREATE_SHADER(create_shader)
+MELON_GFX_CREATE_SHADER(melon_create_shader)
 {
-    shader_handle shader_id = { MELON_GL_INVALID_ID };
+    melon_shader_handle shader_id = { MELON_GL_INVALID_ID };
 
-    GLuint vertex_shader = compile_shader(&g_device.config.allocator, GL_VERTEX_SHADER, &shader_create_info->vertex_shader);
+    GLuint vertex_shader
+        = compile_shader(&g_device.config.allocator, GL_VERTEX_SHADER, &shader_create_info->vertex_shader);
     GLuint fragment_shader
         = compile_shader(&g_device.config.allocator, GL_FRAGMENT_SHADER, &shader_create_info->fragment_shader);
 
@@ -176,21 +176,21 @@ MELON_GFX_CREATE_SHADER(create_shader)
     MELON_LOG("Shader successfully compiled and linked using %s and %s\n", shader_create_info->vertex_shader.name,
               shader_create_info->fragment_shader.name);
 
-    shader_id = { program };
+    shader_id = (melon_shader_handle) { program };
 
     return shader_id;
 }
 
-MELON_GFX_DELETE_SHADER(delete_shader) { glDeleteProgram((GLuint) shader.data); }
+MELON_GFX_DELETE_SHADER(melon_delete_shader) { glDeleteProgram((GLuint) shader.data); }
 
-MELON_GFX_CREATE_BUFFER(create_buffer)
+MELON_GFX_CREATE_BUFFER(melon_create_buffer)
 {
-    buffer_handle buffer_id = { MELON_GL_INVALID_ID };
+    melon_buffer_handle buffer_id = { MELON_GL_INVALID_ID };
 
     GLuint buf     = 0;
     GLenum binding = GL_ARRAY_BUFFER;    // This is set to GL_ARRAY_BUFFER because at this stage the binding
                                          // doesn't matter. This is just to get the buffer bound.
-    GLuint usage = gl_buffer_usage(buffer_create_info->usage);
+    GLuint usage = gl_melon_buffer_usage(buffer_create_info->usage);
 
     glGenBuffers(1, &buf);
     glBindBuffer(binding, buf);
@@ -202,20 +202,20 @@ MELON_GFX_CREATE_BUFFER(create_buffer)
         return buffer_id;
     }
 
-    buffer_id = { buf };
+    buffer_id = (melon_buffer_handle) { buf };
 
     glBindBuffer(binding, 0);
 
     return buffer_id;
 }
 
-MELON_GFX_DELETE_BUFFER(delete_buffer)
+MELON_GFX_DELETE_BUFFER(melon_delete_buffer)
 {
     GLuint handle = (GLuint) buffer.data;
     glDeleteBuffers(1, &handle);
 }
 
-MELON_GFX_CREATE_PIPELINE(create_pipeline)
+MELON_GFX_CREATE_PIPELINE(melon_create_pipeline)
 {
     pipeline_gl new_pipeline    = { 0 };
     new_pipeline.shader_program = pipeline_create_info->shader_program;
@@ -224,15 +224,15 @@ MELON_GFX_CREATE_PIPELINE(create_pipeline)
     GLuint gl_program = MELON_GL_HANDLE(new_pipeline.shader_program);
 
     size_t packed_stride = 0;
-    for (size_t attrib_index = 0, gl_attrib_index = 0;
-         attrib_index < MELON_MAX_ATTRIBUTES && gl_attrib_index < MELON_MAX_ATTRIBUTES;
+    for (int attrib_index = 0, gl_attrib_index = 0;
+         attrib_index < MELON_GFX_MAX_ATTRIBUTES && gl_attrib_index < MELON_GFX_MAX_ATTRIBUTES;
          attrib_index++, gl_attrib_index++)
     {
-        const vertex_attrib_params* attrib_params = pipeline_create_info->vertex_attribs + attrib_index;
+        const melon_vertex_attrib_params* attrib_params = pipeline_create_info->vertex_attribs + attrib_index;
         if (attrib_params->type == MELON_FORMAT_INVALID)
             continue;
 
-        if (attrib_params->buffer_binding > MELON_MAX_BUFFER_ATTACHMENTS)
+        if (attrib_params->buffer_binding > MELON_GFX_MAX_BUFFER_ATTACHMENTS)
         {
             gl_attrib_index--;
             continue;
@@ -253,26 +253,31 @@ MELON_GFX_CREATE_PIPELINE(create_pipeline)
         new_pipeline.attribs[gl_attrib_index] = new_attrib;
         new_pipeline.num_attribs++;
 
-        packed_stride += new_attrib.size * vertex_data_type_bytes(attrib_params->type);
+        packed_stride += new_attrib.size * melon_vertex_data_type_bytes(attrib_params->type);
     }
 
     if (pipeline_create_info->stride == 0)
+    {
         new_pipeline.stride = packed_stride;
+    }
     else
+    {
         new_pipeline.stride = pipeline_create_info->stride;
-
-    return { gl_pipeline_pool_push(&g_device.pipelines, new_pipeline) };
+    }
+    return (melon_pipeline_handle) { melon_map_push(&g_device.pipelines, &new_pipeline) };
 }
 
-MELON_GFX_DELETE_PIPELINE(delete_pipeline)
+MELON_GFX_DELETE_PIPELINE(melon_delete_pipeline)
 {
-    if (!gl_pipeline_pool_delete(&g_device.pipelines, pipeline.data))
+    if (!melon_map_delete(&g_device.pipelines, pipeline.data))
+    {
         MELON_LOG("Pipeline deletion error: invalid ID.\n");
+    }
 }
 
-static void gl3_clear_pipeline(pipeline_handle pipeline_id)
+static void gl3_clear_pipeline(melon_pipeline_handle pipeline_id)
 {
-    pipeline_gl* pipeline_gl = gl_pipeline_pool_get_p(&g_device.pipelines, pipeline_id.data);
+    pipeline_gl* pipeline_gl = melon_map_get(&g_device.pipelines, pipeline_id.data);
 
     for (size_t attrib_index = 0; attrib_index < pipeline_gl->num_attribs; attrib_index++)
     {
@@ -283,10 +288,11 @@ static void gl3_clear_pipeline(pipeline_handle pipeline_id)
     glUseProgram(0);
 }
 
-static void gl3_bind_pipeline(draw_state* current_draw_state, const pipeline_handle pipeline_id)
+static void gl3_melon_cmd_bind_pipeline(melon_draw_state*           current_melon_draw_state,
+                                        const melon_pipeline_handle pipeline_id)
 {
-    pipeline_gl* pipeline_gl     = gl_pipeline_pool_get_p(&g_device.pipelines, pipeline_id.data);
-    current_draw_state->pipeline = pipeline_id;
+    pipeline_gl* pipeline_gl           = melon_map_get(&g_device.pipelines, pipeline_id.data);
+    current_melon_draw_state->pipeline = pipeline_id;
     gl3_clear_pipeline(pipeline_id);
 
     MELON_ASSERT(MELON_GFX_HANDLE_IS_VALID(pipeline_gl->shader_program),
@@ -297,23 +303,23 @@ static void gl3_bind_pipeline(draw_state* current_draw_state, const pipeline_han
     glUseProgram(shader_program);
 }
 
-static void gl3_bind_resources(pipeline_handle pipeline_id, draw_state* current_draw_state,
-                               const draw_resources* draw_resources)
+static void gl3_bind_resources(melon_pipeline_handle pipeline_id, melon_draw_state* current_melon_draw_state,
+                               const melon_draw_resources* melon_draw_resources)
 {
-    pipeline_gl* pipeline_gl = gl_pipeline_pool_get_p(&g_device.pipelines, pipeline_id.data);
+    pipeline_gl* pipeline_gl = melon_map_get(&g_device.pipelines, pipeline_id.data);
 
     for (size_t attrib_index = 0; attrib_index < pipeline_gl->num_attribs; attrib_index++)
     {
         GLuint            current_buffer = 0;
         vertex_attrib_gl* attrib         = &pipeline_gl->attribs[attrib_index];
 
-        buffer_handle buffer = draw_resources->buffers[attrib->buffer_binding];
+        melon_buffer_handle buffer = melon_draw_resources->buffers[attrib->buffer_binding];
         MELON_ASSERT(MELON_GFX_HANDLE_IS_VALID(buffer), "Buffer at binding %lu was invalid", attrib->buffer_binding);
 
-        if (current_draw_state->resources.buffers[attrib->buffer_binding].data == buffer.data)
+        if (current_melon_draw_state->resources.buffers[attrib->buffer_binding].data == buffer.data)
             continue;
 
-        current_draw_state->resources.buffers[attrib->buffer_binding] = buffer;
+        current_melon_draw_state->resources.buffers[attrib->buffer_binding] = buffer;
 
         if (current_buffer != MELON_GL_HANDLE(buffer))
         {
@@ -327,18 +333,18 @@ static void gl3_bind_resources(pipeline_handle pipeline_id, draw_state* current_
         glEnableVertexAttribArray(attrib->location);
     }
 
-    if (current_draw_state->resources.index_buffer.data != draw_resources->index_buffer.data
-        && MELON_GFX_HANDLE_IS_VALID(current_draw_state->resources.index_buffer))
+    if (current_melon_draw_state->resources.index_buffer.data != melon_draw_resources->index_buffer.data
+        && MELON_GFX_HANDLE_IS_VALID(current_melon_draw_state->resources.index_buffer))
     {
-        current_draw_state->resources.index_buffer = draw_resources->index_buffer;
-        current_draw_state->resources.index_type   = draw_resources->index_type;
+        current_melon_draw_state->resources.index_buffer = melon_draw_resources->index_buffer;
+        current_melon_draw_state->resources.index_type   = melon_draw_resources->index_type;
 
-        GLuint index_buffer = MELON_GL_HANDLE(current_draw_state->resources.index_buffer);
+        GLuint index_buffer = MELON_GL_HANDLE(current_melon_draw_state->resources.index_buffer);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer);
     }
 }
 
-static GLenum gl_draw_type(draw_type type)
+static GLenum gl_melon_draw_type(melon_draw_type type)
 {
     switch (type)
     {
@@ -351,106 +357,106 @@ static GLenum gl_draw_type(draw_type type)
 
 // TODO: should pass in a "command context" object to store current state, eventually wrap
 // everything in a command buffer
-MELON_GFX_EXECUTE_DRAW_GROUPS(execute_draw_groups)
+MELON_GFX_EXECUTE_DRAW_GROUPS(melon_execute_draw_groups)
 {
-    draw_state current_draw_state = { 0 };
-    for (size_t i = 0; i < num_draw_groups; i++)
+    melon_draw_state current_melon_draw_state = { 0 };
+    for (size_t i = 0; i < num_melon_draw_groups; i++)
     {
-        pipeline_handle       pipeline  = draw_groups[i].pipeline;
-        const draw_resources* resources = &draw_groups[i].resources;
+        melon_pipeline_handle       pipeline  = melon_draw_groups[i].pipeline;
+        const melon_draw_resources* resources = &melon_draw_groups[i].resources;
 
-        MELON_ASSERT(gl_pipeline_pool_handle_is_valid(&g_device.pipelines, pipeline.data),
+        MELON_ASSERT(melon_map_handle_is_valid(&g_device.pipelines, pipeline.data),
                      "Pipeline binding error: pipeline ID invalid.");
 
-        gl3_bind_pipeline(&current_draw_state, pipeline);
+        gl3_melon_cmd_bind_pipeline(&current_melon_draw_state, pipeline);
 
-        const draw_group* draw_group = &draw_groups[i];
-        for (size_t j = 0; j < draw_group->num_draw_calls; j++)
+        const melon_draw_group* melon_draw_group = &melon_draw_groups[i];
+        for (size_t j = 0; j < melon_draw_group->num_draw_calls; j++)
         {
-            const draw_call_params* draw_call = &(draw_group->draw_calls[j]);
-            gl3_bind_resources(pipeline, &current_draw_state, resources);
+            const melon_draw_call_params* draw_call = &(melon_draw_group->draw_calls[j]);
+            gl3_bind_resources(pipeline, &current_melon_draw_state, resources);
 
             if (MELON_GFX_HANDLE_IS_VALID(resources->index_buffer))
             {
-                glDrawElementsInstancedBaseVertex(gl_draw_type(draw_call->type), draw_call->num_vertices,
+                glDrawElementsInstancedBaseVertex(gl_melon_draw_type(draw_call->type), draw_call->num_vertices,
                                                   gl_data_format(resources->index_type), NULL, draw_call->instances,
                                                   draw_call->base_vertex);
             }
             else
             {
-                glDrawArraysInstanced(gl_draw_type(draw_call->type), draw_call->base_vertex, draw_call->num_vertices,
-                                      draw_call->instances);
+                glDrawArraysInstanced(gl_melon_draw_type(draw_call->type), draw_call->base_vertex,
+                                      draw_call->num_vertices, draw_call->instances);
             }
         }
     }
-    gl3_clear_pipeline(current_draw_state.pipeline);
+    gl3_clear_pipeline(current_melon_draw_state.pipeline);
 }
 
-MELON_GFX_CREATE_COMMAND_BUFFER(create_command_buffer)
+MELON_GFX_CREATE_COMMAND_BUFFER(melon_create_command_buffer)
 {
-    commands::command_buffer new_cb;
-    commands::create_command_buffer(&g_device.config.allocator, &new_cb, MELON_MEGABYTE(2));
-    return { command_buffer_pool_push(&g_device.command_buffers, new_cb) };
+    cb_command_buffer new_cb;
+    cb_create(&g_device.config.allocator, &new_cb, MELON_MEGABYTE(2));
+    return (melon_command_buffer_handle){ melon_map_push(&g_device.command_buffers, &new_cb) };
 }
 
-MELON_GFX_DELETE_COMMAND_BUFFER(delete_command_buffer)
+MELON_GFX_DELETE_COMMAND_BUFFER(melon_delete_command_buffer)
 {
-    commands::command_buffer* p = command_buffer_pool_get_p(&g_device.command_buffers, cb.data);
-    commands::destroy_command_buffer(p);
+    cb_command_buffer* p = melon_map_get(&g_device.command_buffers, cb.data);
+    cb_destroy(p);
 }
 
-MELON_GFX_CB_BEGIN_RECORDING(begin_recording)
+MELON_GFX_CB_BEGIN_RECORDING(melon_begin_recording)
 {
-    commands::command_buffer* p = command_buffer_pool_get_p(&g_device.command_buffers, cb.data);
-    commands::begin_recording(p);
+    cb_command_buffer* p = melon_map_get(&g_device.command_buffers, cb.data);
+    cb_begin_recording(p);
 }
 
-MELON_GFX_CB_END_RECORDING(end_recording)
+MELON_GFX_CB_END_RECORDING(melon_end_recording)
 {
-    commands::command_buffer* p = command_buffer_pool_get_p(&g_device.command_buffers, cb.data);
-    commands::end_recording(p);
+    cb_command_buffer* p = melon_map_get(&g_device.command_buffers, cb.data);
+    cb_end_recording(p);
 }
 
-MELON_GFX_CB_BIND_VERTEX_BUFFER(bind_vertex_buffer)
+MELON_GFX_CB_BIND_VERTEX_BUFFER(melon_cmd_bind_vertex_buffer)
 {
-    commands::command_buffer* p = command_buffer_pool_get_p(&g_device.command_buffers, cb.data);
-    commands::bind_vertex_buffer(p, buffer, binding);
+    cb_command_buffer* p = melon_map_get(&g_device.command_buffers, cb.data);
+    cb_cmd_bind_vertex_buffer(p, buffer, binding);
 }
 
-MELON_GFX_CB_BIND_INDEX_BUFFER(bind_index_buffer)
+MELON_GFX_CB_BIND_INDEX_BUFFER(melon_cmd_bind_index_buffer)
 {
-    commands::command_buffer* p = command_buffer_pool_get_p(&g_device.command_buffers, cb.data);
-    commands::bind_index_buffer(p, buffer);
+    cb_command_buffer* p = melon_map_get(&g_device.command_buffers, cb.data);
+    cb_cmd_bind_index_buffer(p, buffer);
 }
 
-MELON_GFX_CB_BIND_PIPELINE(bind_pipeline)
+MELON_GFX_CB_BIND_PIPELINE(melon_cmd_bind_pipeline)
 {
-    commands::command_buffer* p = command_buffer_pool_get_p(&g_device.command_buffers, cb.data);
-    commands::bind_pipeline(p, pipeline);
+    cb_command_buffer* p = melon_map_get(&g_device.command_buffers, cb.data);
+    cb_cmd_bind_pipeline(p, pipeline);
 }
 
-MELON_GFX_CB_DRAW(draw)
+MELON_GFX_CB_DRAW(melon_cmd_draw)
 {
-    commands::command_buffer* p = command_buffer_pool_get_p(&g_device.command_buffers, cb.data);
-    commands::draw(p, params);
+    cb_command_buffer* p = melon_map_get(&g_device.command_buffers, cb.data);
+    cb_cmd_draw(p, params);
 }
 
-MELON_GFX_CB_RESET(reset)
+MELON_GFX_CB_RESET(melon_reset)
 {
-    commands::command_buffer* p = command_buffer_pool_get_p(&g_device.command_buffers, cb.data);
-    commands::reset(p);
+    cb_command_buffer* p = melon_map_get(&g_device.command_buffers, cb.data);
+    cb_reset(p);
 }
 
-void begin_consuming(command_buffer_handle cb)
+void melon_begin_consuming(melon_command_buffer_handle cb)
 {
-    commands::command_buffer* p = command_buffer_pool_get_p(&g_device.command_buffers, cb.data);
-    commands::begin_consuming(p);
+    cb_command_buffer* p = melon_map_get(&g_device.command_buffers, cb.data);
+    cb_begin_consuming(p);
 }
 
-void end_consuming(command_buffer_handle cb)
+void melon_end_consuming(melon_command_buffer_handle cb)
 {
-    commands::command_buffer* p = command_buffer_pool_get_p(&g_device.command_buffers, cb.data);
-    commands::end_consuming(p);
+    cb_command_buffer* p = melon_map_get(&g_device.command_buffers, cb.data);
+    cb_end_consuming(p);
 }
 
 /**
@@ -461,44 +467,45 @@ MELON_GFX_CB_SUBMIT(submit_commands)
     // Translate to GL
     for (size_t i = 0; i < num_cbs; i++)
     {
-        commands::command_buffer* p = command_buffer_pool_get_p(&g_device.command_buffers, command_buffers[i].data);
-        commands::begin_consuming(p);
+        cb_command_buffer* p = melon_map_get(&g_device.command_buffers, command_buffers[i].data);
+        cb_begin_consuming(p);
 
-        commands::command* cmd = commands::pop_command(p);
+        cb_command* cmd = cb_pop_command(p);
         while (cmd)
         {
             switch (cmd->type)
             {
-                case commands::BIND_VERTEX_BUFFER:
+                case MELON_CMD_BIND_VERTEX_BUFFER:
                 {
-                    commands::bind_vertex_buffer_data* bind_data = (commands::bind_vertex_buffer_data*) cmd->data;
+                    cb_cmd_bind_vertex_buffer_data* bind_data = (cb_cmd_bind_vertex_buffer_data*) cmd->data;
+                    // TODO
                     break;
                 }
-                case commands::BIND_INDEX_BUFFER:
+                case MELON_CMD_BIND_INDEX_BUFFER:
                 {
-                    buffer_handle* ib = (buffer_handle*) cmd->data;
+                    melon_buffer_handle* ib = (melon_buffer_handle*) cmd->data;
+                    // TODO
                     break;
                 }
-                case commands::BIND_PIPELINE:
+                case MELON_CMD_BIND_PIPELINE:
                 {
-                    pipeline_handle* pipeline = (pipeline_handle*) cmd->data;
+                    melon_pipeline_handle* pipeline = (melon_pipeline_handle*) cmd->data;
+                    // TODO
                     break;
                 }
-                case commands::DRAW:
+                case MELON_CMD_DRAW:
                 {
-                    draw_call_params* params = (draw_call_params*) cmd->data;
+                    melon_draw_call_params* params = (melon_draw_call_params*) cmd->data;
+                    // TODO
                     break;
                 }
             }
 
-            cmd = commands::pop_command(p);
+            cmd = cb_pop_command(p);
         }
 
-        commands::end_consuming(p);
+        cb_end_consuming(p);
     }
 }
-
-}    // namespace gfx
-}    // namespace melon
 
 #endif

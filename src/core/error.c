@@ -6,9 +6,6 @@
 
 #include <stdarg.h>
 
-namespace melon
-{
-
 static void default_logger(const char* message, ...)
 {
     va_list arg_list;
@@ -17,6 +14,4 @@ static void default_logger(const char* message, ...)
     va_end(arg_list);
 }
 
-logger_callback_fp logger_callback = default_logger;
-
-}
+melon_logger_callback_fp melon_logger_callback = default_logger;

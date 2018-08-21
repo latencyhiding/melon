@@ -68,6 +68,7 @@ GLenum glCheckError()
 int main(int argc, char** argv)
 {
     GLFWwindow* window;
+
     if (!glfwInit())
         exit(EXIT_FAILURE);
 
@@ -92,7 +93,7 @@ int main(int argc, char** argv)
 
     glfwSetKeyCallback(window, key_callback);
 
-    melon::gfx::init();
+    melon_gfx_init(melon_default_device_params());
 
     const char* vertex_source
         = "#version 330\n"
@@ -109,66 +110,64 @@ int main(int argc, char** argv)
           "    out_color = vec4(0.0f, 0.5f, 0.2f, 1.0f);"
           "}";
 
-    melon::gfx::shader_params shader_params = {};
+    melon_shader_params melon_shader_params = {0};
     {
-        shader_params.vertex_shader.name   = "passthrough.vert";
-        shader_params.vertex_shader.source = vertex_source;
-        shader_params.vertex_shader.size   = strlen(vertex_source);
+        melon_shader_params.vertex_shader.name   = "passthrough.vert";
+        melon_shader_params.vertex_shader.source = vertex_source;
+        melon_shader_params.vertex_shader.size   = strlen(vertex_source);
     }
     {
-        shader_params.fragment_shader.name   = "passthrough.frag";
-        shader_params.fragment_shader.source = fragment_source;
-        shader_params.fragment_shader.size   = strlen(fragment_source);
+        melon_shader_params.fragment_shader.name   = "passthrough.frag";
+        melon_shader_params.fragment_shader.source = fragment_source;
+        melon_shader_params.fragment_shader.size   = strlen(fragment_source);
     }
 
-    melon::gfx::shader_handle shader_program = melon::gfx::create_shader(&shader_params);
+    melon_shader_handle shader_program = melon_create_shader(&melon_shader_params);
 
     float vertices[] = { -0.5f, -0.5f, 0.5f, -0.5f, 0.0f, 0.5f };
 
-    melon::gfx::buffer_params buffer_params = {};
+    melon_buffer_params melon_buffer_params = {0};
     {
-        buffer_params.data  = vertices;
-        buffer_params.size  = sizeof(vertices);
-        buffer_params.usage = melon::gfx::MELON_STATIC_BUFFER;
+        melon_buffer_params.data  = vertices;
+        melon_buffer_params.size  = sizeof(vertices);
+        melon_buffer_params.usage = MELON_STATIC_BUFFER;
     }
-    melon::gfx::buffer_handle vertex_buffer = melon::gfx::create_buffer(&buffer_params);
+    melon_buffer_handle vertex_buffer = melon_create_buffer(&melon_buffer_params);
 
-    melon::gfx::pipeline_params pipeline_params = {};
+    melon_pipeline_params melon_pipeline_params = {0};
     {
-        melon::gfx::vertex_attrib_params position_attrib = {};
+        melon_vertex_attrib_params position_attrib = {0};
 
-        position_attrib                = {};
         position_attrib.name           = "position";
         position_attrib.buffer_binding = 0;
         position_attrib.offset         = 0;
-        position_attrib.type           = melon::gfx::MELON_FORMAT_FLOAT;
+        position_attrib.type           = MELON_FORMAT_FLOAT;
         position_attrib.size           = 2;
         position_attrib.divisor        = 0;
 
-        pipeline_params.vertex_attribs[0] = position_attrib;
+        melon_pipeline_params.vertex_attribs[0] = position_attrib;
 
-        pipeline_params.shader_program = shader_program;
+        melon_pipeline_params.shader_program = shader_program;
     }
 
-    melon::gfx::pipeline_handle pipeline = melon::gfx::create_pipeline(&pipeline_params);
+    melon_pipeline_handle pipeline = melon_create_pipeline(&melon_pipeline_params);
 
-    melon::gfx::draw_call_params draw_calls = {};
+    melon_draw_call_params draw_calls = {0};
     {
-        draw_calls.type         = melon::gfx::MELON_TRIANGLES;
+        draw_calls.type         = MELON_TRIANGLES;
         draw_calls.instances    = 1;
         draw_calls.base_vertex  = 0;
         draw_calls.num_vertices = 3;
     }
 
-    melon::gfx::draw_group draw_group = {};
+    melon_draw_group melon_draw_group = {0};
     {
-        draw_group.pipeline  = pipeline;
-        draw_group.resources = {};
+        melon_draw_group.pipeline  = pipeline;
         {
-            draw_group.resources.buffers[0] = vertex_buffer;
+            melon_draw_group.resources.buffers[0] = vertex_buffer;
         }
-        draw_group.draw_calls     = &draw_calls;
-        draw_group.num_draw_calls = 1;
+        melon_draw_group.draw_calls     = &draw_calls;
+        melon_draw_group.num_draw_calls = 1;
     }
 
     glClearColor(0, 0, 0, 0);
@@ -177,16 +176,16 @@ int main(int argc, char** argv)
         glfwPollEvents();
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        melon::gfx::execute_draw_groups(&draw_group, 1);
+        melon_execute_draw_groups(&melon_draw_group, 1);
         glCheckError();
 
         glfwSwapBuffers(window);
     }
 
-    melon::gfx::delete_shader(shader_program);
-    melon::gfx::delete_pipeline(pipeline);
+    melon_delete_shader(shader_program);
+    melon_delete_pipeline(pipeline);
 
-    melon::gfx::destroy();
+    melon_gfx_destroy();
 
     return 0;
 }
