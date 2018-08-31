@@ -13,6 +13,28 @@
 
 melon_gfx_handle melon_gfx_invalid_handle = {0};
 
+static GLenum glCheckError()
+{
+    GLenum errorCode;
+    while ((errorCode = glGetError()) != GL_NO_ERROR)
+    {
+        const char* error;
+        switch (errorCode)
+        {
+            case GL_INVALID_ENUM: error = "INVALID_ENUM"; break;
+            case GL_INVALID_VALUE: error = "INVALID_VALUE"; break;
+            case GL_INVALID_OPERATION: error = "INVALID_OPERATION"; break;
+            case GL_STACK_OVERFLOW: error = "STACK_OVERFLOW"; break;
+            case GL_STACK_UNDERFLOW: error = "STACK_UNDERFLOW"; break;
+            case GL_OUT_OF_MEMORY: error = "OUT_OF_MEMORY"; break;
+            case GL_INVALID_FRAMEBUFFER_OPERATION: error = "INVALID_FRAMEBUFFER_OPERATION"; break;
+        }
+        printf("%s\n", error);
+        exit(1);
+    }
+    return errorCode;
+}
+
 static GLenum gl_melon_buffer_usage(melon_buffer_usage usage)
 {
     switch (usage)
@@ -72,9 +94,16 @@ typedef struct
 
 static device_gl g_device;
 
-MELON_GFX_CREATE_DEVICE(melon_gfx_init)
+MELON_GFX_CREATE_DEVICE(melon_gfx_backend_init)
 {
-    g_device.config = *device_config;
+    if (!device_config)
+    {
+        g_device.config = *(melon_default_device_params());
+    }
+    else 
+    {
+        g_device.config = *device_config;
+    }
 
     melon_create_map(&g_device.pipelines, g_device.config.resource_count.max_pipelines,
                              &g_device.config.allocator, false);
@@ -82,12 +111,10 @@ MELON_GFX_CREATE_DEVICE(melon_gfx_init)
                              &g_device.config.allocator, false);
 
     g_device.dummy_vao = 0;
-
-    glGenVertexArrays(1, &g_device.dummy_vao);
-    glBindVertexArray(g_device.dummy_vao);
+    return true;
 }
 
-MELON_GFX_DELETE_DEVICE(melon_gfx_destroy) { glDeleteVertexArrays(1, &g_device.dummy_vao); }
+MELON_GFX_DELETE_DEVICE(melon_gfx_backend_destroy) { glDeleteVertexArrays(1, &g_device.dummy_vao); }
 
 static GLuint compile_shader(const melon_allocator_api* allocator, GLenum type,
                              const melon_shader_stage_params* shader_stage_create_info)
@@ -359,6 +386,12 @@ static GLenum gl_melon_draw_type(melon_draw_type type)
 // everything in a command buffer
 MELON_GFX_EXECUTE_DRAW_GROUPS(melon_execute_draw_groups)
 {
+    if (g_device.dummy_vao == 0)
+    {
+        glGenVertexArrays(1, &g_device.dummy_vao);
+        glBindVertexArray(g_device.dummy_vao);
+    }
+
     melon_draw_state current_melon_draw_state = { 0 };
     for (size_t i = 0; i < num_melon_draw_groups; i++)
     {
@@ -375,6 +408,7 @@ MELON_GFX_EXECUTE_DRAW_GROUPS(melon_execute_draw_groups)
         {
             const melon_draw_call_params* draw_call = &(melon_draw_group->draw_calls[j]);
             gl3_bind_resources(pipeline, &current_melon_draw_state, resources);
+            glCheckError();
 
             if (MELON_GFX_HANDLE_IS_VALID(resources->index_buffer))
             {
@@ -464,6 +498,11 @@ void melon_end_consuming(melon_command_buffer_handle cb)
  */
 MELON_GFX_CB_SUBMIT(submit_commands)
 {
+    if (g_device.dummy_vao == 0)
+    {
+        glGenVertexArrays(1, &g_device.dummy_vao);
+        glBindVertexArray(g_device.dummy_vao);
+    }
     // Translate to GL
     for (size_t i = 0; i < num_cbs; i++)
     {

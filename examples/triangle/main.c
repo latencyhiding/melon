@@ -8,40 +8,7 @@
 #include <melon/core/error.h>
 #include <melon/gfx.h>
 
-static void error_callback(int error, const char* description) { fprintf(stderr, "%s", description); }
-
-static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
-{
-    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, GL_TRUE);
-}
-
-static const char* load_text_file(const char* filename)
-{
-    FILE*  f    = fopen(filename, "r");
-    size_t size = 0;
-    char*  data = NULL;
-
-    if (!f)
-    {
-        MELON_LOG("Can't find file: %s\n", filename);
-        return NULL;
-    }
-
-    fseek(f, 0L, SEEK_END);
-    size = ftell(f);
-    rewind(f);
-
-    data = (char*) malloc(size + 1);
-    memset(data, 0, size + 1);
-
-    fread(data, 1, size, f);
-    fclose(f);
-
-    return data;
-}
-
-GLenum glCheckError()
+static GLenum glCheckError()
 {
     GLenum errorCode;
     while ((errorCode = glGetError()) != GL_NO_ERROR)
@@ -67,33 +34,17 @@ GLenum glCheckError()
 
 int main(int argc, char** argv)
 {
-    GLFWwindow* window;
-
-    if (!glfwInit())
-        exit(EXIT_FAILURE);
-
-    glfwSetErrorCallback(error_callback);
-
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-    glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
-
-    window = glfwCreateWindow(WIDTH, HEIGHT, "", NULL, NULL);
-    if (!window)
+    if (!melon_gfx_init(NULL))
     {
-        glfwTerminate();
         exit(EXIT_FAILURE);
     }
 
-    glfwMakeContextCurrent(window);
-
-    gladLoadGLLoader((GLADloadproc) glfwGetProcAddress);
-
-    glfwSetKeyCallback(window, key_callback);
-
-    melon_gfx_init(melon_default_device_params());
+    melon_window* window = melon_create_window(WIDTH, HEIGHT, "triangle");
+    if (!window)
+    {
+        melon_gfx_destroy();
+        exit(EXIT_FAILURE);
+    }
 
     const char* vertex_source
         = "#version 330\n"
@@ -169,17 +120,17 @@ int main(int argc, char** argv)
         melon_draw_group.draw_calls     = &draw_calls;
         melon_draw_group.num_draw_calls = 1;
     }
-
+    
     glClearColor(0, 0, 0, 0);
-    while (!glfwWindowShouldClose(window))
+    while (!melon_window_should_close(window))
     {
-        glfwPollEvents();
+        melon_poll_input_events();
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         melon_execute_draw_groups(&melon_draw_group, 1);
         glCheckError();
 
-        glfwSwapBuffers(window);
+        melon_swap_buffers(window);
     }
 
     melon_delete_shader(shader_program);

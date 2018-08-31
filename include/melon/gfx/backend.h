@@ -208,11 +208,11 @@ size_t                   melon_vertex_data_type_bytes(const melon_vertex_data_ty
  *                  default parameters will be used if this is NULL.
  */
 
-#define MELON_GFX_CREATE_DEVICE(name) void name(const melon_device_params* device_config)
-MELON_GFX_CREATE_DEVICE(melon_gfx_init);
+#define MELON_GFX_CREATE_DEVICE(name) bool name(const melon_device_params* device_config)
+MELON_GFX_CREATE_DEVICE(melon_gfx_backend_init);
 
 #define MELON_GFX_DELETE_DEVICE(name) void name()
-MELON_GFX_DELETE_DEVICE(melon_gfx_destroy);
+MELON_GFX_DELETE_DEVICE(melon_gfx_backend_destroy);
 
 #define MELON_GFX_CREATE_SHADER(name) melon_shader_handle name(const melon_shader_params* shader_create_info)
 MELON_GFX_CREATE_SHADER(melon_create_shader);

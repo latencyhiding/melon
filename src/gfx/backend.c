@@ -40,6 +40,6 @@ const melon_device_params* melon_default_device_params()
         default_device_params.allocator                          = *(melon_default_cb_allocator());
         
         p_default_device_params                                  = &default_device_params;
-    };
+    }
     return p_default_device_params;
 }

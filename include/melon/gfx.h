@@ -11,6 +11,16 @@ extern "C"
 
 #include <melon/core.h>
 #include <melon/gfx/backend.h>
+#include <melon/gfx/window.h>
+
+typedef struct
+{
+    const melon_device_params* device_params;
+    const melon_input_params*  input_params;
+} melon_gfx_config;
+
+bool melon_gfx_init(const melon_gfx_config* config);
+void melon_gfx_destroy();
 
 #ifdef __cplusplus
 }
